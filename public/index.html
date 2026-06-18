@@ -226,6 +226,12 @@
     <div class="section-btns" id="section-btns"></div>
   </div>
 
+  <div id="migrate-wrap" style="display:none; margin-bottom:1rem;">
+    <button class="btn" id="migrate-btn" onclick="migrateSection()" style="font-size:13px; color:var(--text2);">
+      <i class="ti ti-refresh"></i> Convert existing bookmarks in this section
+    </button>
+  </div>
+
   <div class="search-row">
     <input type="text" id="query" placeholder="Search for a movie..." onkeydown="if(event.key==='Enter')doSearch()" autocomplete="off" />
     <button class="btn" onclick="doSearch()" id="search-btn">
@@ -310,7 +316,36 @@ async function loadSections() {
     });
 
     picker.style.display = 'block';
+    document.getElementById('migrate-wrap').style.display = 'block';
   } catch(e) {}
+}
+
+async function migrateSection() {
+  if (!currentSectionId) return;
+  const btn = document.getElementById('migrate-btn');
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner"></div> Converting…`;
+  setStatus('Converting bookmarks — this may take a minute…', 'loading');
+
+  try {
+    const res = await fetch('/.netlify/functions/migrate-section', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageId: PAGE_IDS[currentTab], sectionId: currentSectionId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Migration failed');
+
+    const missing = data.missing && data.missing.length > 0
+      ? ` ⚠️ ${data.missing.length} may be missing: ${data.missing.join(', ')}`
+      : ' All entries accounted for.';
+    setStatus(`✓ Converted ${data.afterCount} of ${data.beforeCount} bookmarks.${missing}`, 'success');
+  } catch(e) {
+    setStatus(`Migration failed: ${e.message}`, 'error');
+  }
+
+  btn.innerHTML = `<i class="ti ti-refresh"></i> Convert existing bookmarks in this section`;
+  btn.disabled = false;
 }
 
 function clearResults() {
