@@ -42,7 +42,7 @@ exports.handler = async (event) => {
       'Content-Type': 'application/json',
       'Notion-Version': '2026-03-11',
     },
-    body: JSON.stringify({ children, position: afterBlockId ? { type: 'after_block', block_id: afterBlockId } : { type: 'start' } })
+    body: JSON.stringify({ children, position: afterBlockId ? { type: 'after_block', after_block: afterBlockId } : { type: 'start' } })
   });
   const data = await r.json();
   if (!r.ok) return { statusCode: r.status, body: JSON.stringify({ error: data.message }) };
