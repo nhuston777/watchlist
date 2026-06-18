@@ -2,7 +2,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405 };
   const token = process.env.NOTION_TOKEN;
   if (!token) return { statusCode: 500, body: JSON.stringify({ error: 'NOTION_TOKEN not set' }) };
-  const { pageId, url, poster, plot } = JSON.parse(event.body);
+  const { pageId, url, poster, plot, title } = JSON.parse(event.body);
 
   const bookmarkBlock = {
     object: 'block', type: 'bookmark',
@@ -10,6 +10,12 @@ exports.handler = async (event) => {
   };
 
   const children = [];
+  if (title) {
+    children.push({
+      object: 'block', type: 'paragraph',
+      paragraph: { rich_text: [{ type: 'text', text: { content: title, link: { url } }, annotations: { bold: true } }] }
+    });
+  }
   if (poster) {
     children.push({
       object: 'block', type: 'column_list',

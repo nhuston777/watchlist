@@ -382,7 +382,7 @@ async function addToNotion() {
     const res = await fetch('/.netlify/functions/add-to-notion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pageId: PAGE_IDS[currentTab], url: currentResult.url, poster: currentResult.poster, plot: currentResult.plot })
+      body: JSON.stringify({ pageId: PAGE_IDS[currentTab], url: currentResult.url, poster: currentResult.poster, plot: currentResult.plot, title: currentResult.title })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Notion error');
