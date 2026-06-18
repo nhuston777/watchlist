@@ -8,7 +8,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
-const NOTION_VERSION = '2022-06-28';
+const NOTION_VERSION = '2026-03-11';
 
 app.post('/api/search', async (req, res) => {
   const { query, type } = req.body;
@@ -34,9 +34,17 @@ app.post('/api/detail', async (req, res) => {
 });
 
 app.post('/api/add-to-notion', async (req, res) => {
-  const { pageId, url } = req.body;
+  const { pageId, url, poster, plot } = req.body;
   if (!NOTION_TOKEN) return res.status(500).json({ error: 'NOTION_TOKEN not set' });
   try {
+    const children = [];
+    if (poster) {
+      children.push({ object: 'block', type: 'image', image: { type: 'external', external: { url: poster } } });
+    }
+    const bookmark = { url };
+    if (plot) bookmark.caption = [{ type: 'text', text: { content: plot.slice(0, 2000) } }];
+    children.push({ object: 'block', type: 'bookmark', bookmark });
+
     const r = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
       method: 'PATCH',
       headers: {
@@ -44,13 +52,7 @@ app.post('/api/add-to-notion', async (req, res) => {
         'Content-Type': 'application/json',
         'Notion-Version': NOTION_VERSION,
       },
-      body: JSON.stringify({
-        children: [{
-          object: 'block',
-          type: 'bookmark',
-          bookmark: { url }
-        }]
-      })
+      body: JSON.stringify({ children, position: { type: 'start' } })
     });
     const data = await r.json();
     if (!r.ok) return res.status(r.status).json({ error: data.message || 'Notion error' });
