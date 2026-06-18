@@ -9,13 +9,12 @@ exports.handler = async (event) => {
     bookmark: { url, ...(plot ? { caption: [{ type: 'text', text: { content: plot.slice(0, 2000) } }] } : {}) }
   };
 
+  const titleBlock = {
+    object: 'block', type: 'paragraph',
+    paragraph: { rich_text: [{ type: 'text', text: { content: title || url, link: { url } }, annotations: { bold: true } }] }
+  };
+
   const children = [];
-  if (title) {
-    children.push({
-      object: 'block', type: 'paragraph',
-      paragraph: { rich_text: [{ type: 'text', text: { content: title, link: { url } }, annotations: { bold: true } }] }
-    });
-  }
   if (poster) {
     children.push({
       object: 'block', type: 'column_list',
@@ -23,7 +22,7 @@ exports.handler = async (event) => {
         children: [
           {
             object: 'block', type: 'column',
-            column: { children: [bookmarkBlock] }
+            column: { children: [titleBlock] }
           },
           {
             object: 'block', type: 'column',
@@ -33,7 +32,7 @@ exports.handler = async (event) => {
       }
     });
   } else {
-    children.push(bookmarkBlock);
+    children.push(titleBlock);
   }
 
   const r = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
