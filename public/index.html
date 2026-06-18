@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Watchlist Adder</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f6f6f4;
+    --bg3: #eeede9;
+    --text: #1a1a18;
+    --text2: #6b6b67;
+    --text3: #9b9b96;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --success-bg: #eaf3de;
+    --success-text: #3b6d11;
+    --error-bg: #fcebeb;
+    --error-text: #a32d2d;
+    --accent: #1a1a18;
+    --radius: 10px;
+    --radius-lg: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #252522;
+      --bg3: #2e2e2b;
+      --text: #f0efe8;
+      --text2: #a0a09a;
+      --text3: #6b6b67;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+      --success-bg: #173404;
+      --success-text: #c0dd97;
+      --error-bg: #501313;
+      --error-text: #f09595;
+      --accent: #f0efe8;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg3);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .card {
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--border);
+    padding: 2rem;
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1.75rem;
+  }
+  .header-icon {
+    width: 40px; height: 40px;
+    background: #1a1a18;
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .header-icon i { color: #f5c518; font-size: 20px; }
+  .header-title { font-size: 17px; font-weight: 500; color: var(--text); }
+  .header-sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+  .tabs {
+    display: flex;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+  }
+  .tab {
+    flex: 1; padding: 9px 12px;
+    font-size: 14px; font-family: inherit;
+    cursor: pointer; background: var(--bg);
+    border: none; color: var(--text2);
+    transition: background 0.12s, color 0.12s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .tab i { font-size: 15px; }
+  .tab:first-child { border-right: 0.5px solid var(--border); }
+  .tab.active { background: var(--bg2); color: var(--text); font-weight: 500; }
+
+  .search-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .search-row input {
+    flex: 1; padding: 0 12px; height: 38px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius);
+    background: var(--bg); color: var(--text);
+    font-size: 15px; font-family: inherit;
+    outline: none; transition: border-color 0.12s;
+  }
+  .search-row input:focus { border-color: var(--text3); }
+  .search-row input::placeholder { color: var(--text3); }
+  .btn {
+    padding: 0 16px; height: 38px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius);
+    background: var(--bg); color: var(--text);
+    font-size: 14px; font-family: inherit;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: background 0.12s; white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg2); }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-primary {
+    background: var(--accent); color: var(--bg);
+    border-color: transparent; width: 100%;
+    justify-content: center; height: 42px; font-size: 15px;
+    margin-top: 1rem;
+  }
+  .btn-primary:hover { opacity: 0.88; background: var(--accent); }
+
+  .status {
+    padding: 10px 14px; border-radius: var(--radius);
+    font-size: 14px; margin-bottom: 1rem; display: none;
+    line-height: 1.4;
+  }
+  .status.visible { display: block; }
+  .status.success { background: var(--success-bg); color: var(--success-text); }
+  .status.error { background: var(--error-bg); color: var(--error-text); }
+  .status.loading { background: var(--bg2); color: var(--text2); display: flex; align-items: center; gap: 8px; }
+
+  .multi { display: none; margin-bottom: 1rem; }
+  .multi.visible { display: block; }
+  .multi-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .multi-item {
+    padding: 10px 12px; border: 0.5px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 6px; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg); transition: background 0.12s;
+  }
+  .multi-item:hover { background: var(--bg2); }
+  .multi-item-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .multi-item-meta { font-size: 12px; color: var(--text2); margin-top: 1px; }
+
+  .result { display: none; }
+  .result.visible { display: block; }
+  .result-inner { display: flex; gap: 14px; align-items: flex-start; }
+  .poster {
+    width: 60px; height: 88px; border-radius: 6px;
+    object-fit: cover; flex-shrink: 0;
+    background: var(--bg2);
+  }
+  .poster-ph {
+    width: 60px; height: 88px; border-radius: 6px;
+    background: var(--bg2); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .poster-ph i { color: var(--text3); font-size: 22px; }
+  .result-info { flex: 1; min-width: 0; }
+  .result-title { font-size: 16px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+  .result-meta { font-size: 13px; color: var(--text2); margin-bottom: 7px; }
+  .result-plot {
+    font-size: 13px; color: var(--text2); line-height: 1.5;
+    display: -webkit-box; -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px;
+  }
+  .result-url {
+    font-size: 11px; color: var(--text3);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--border2); border-top-color: var(--text2);
+    animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .divider { height: 0.5px; background: var(--border); margin: 1.25rem 0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div class="header-icon"><i class="ti ti-movie"></i></div>
+    <div>
+      <div class="header-title">Add to watchlist</div>
+      <div class="header-sub">Saves to your Notion lists</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-movie" onclick="switchTab('movie')">
+      <i class="ti ti-device-tv-old"></i> Movie
+    </button>
+    <button class="tab" id="tab-tv" onclick="switchTab('tv')">
+      <i class="ti ti-device-tv"></i> TV show
+    </button>
+  </div>
+
+  <div class="search-row">
+    <input type="text" id="query" placeholder="Search for a movie..." onkeydown="if(event.key==='Enter')doSearch()" autocomplete="off" />
+    <button class="btn" onclick="doSearch()" id="search-btn">
+      <i class="ti ti-search"></i> Search
+    </button>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <div class="multi" id="multi">
+    <div class="multi-label">Multiple matches — pick one</div>
+    <div id="multi-list"></div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="divider"></div>
+    <div class="result-inner">
+      <div id="poster-wrap"></div>
+      <div class="result-info">
+        <div class="result-title" id="res-title"></div>
+        <div class="result-meta" id="res-meta"></div>
+        <div class="result-plot" id="res-plot"></div>
+        <div class="result-url" id="res-url"></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="add-btn" onclick="addToNotion()">
+      <i class="ti ti-circle-plus"></i>
+      <span id="add-label">Add to Movie list</span>
+    </button>
+  </div>
+</div>
+
+<script>
+const PAGE_IDS = {
+  movie: '9599f1fb-5a4f-4dd4-b060-5a090e004a61',
+  tv:    '881ebd59-d776-44a9-a563-02d6ff006e00'
+};
+
+let currentTab = 'movie';
+let currentResult = null;
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-movie').classList.toggle('active', tab === 'movie');
+  document.getElementById('tab-tv').classList.toggle('active', tab === 'tv');
+  document.getElementById('query').placeholder = tab === 'movie' ? 'Search for a movie...' : 'Search for a TV show...';
+  document.getElementById('add-label').textContent = tab === 'movie' ? 'Add to Movie list' : 'Add to TV Shows list';
+  clearResults();
+}
+
+function clearResults() {
+  document.getElementById('result').classList.remove('visible');
+  document.getElementById('multi').classList.remove('visible');
+  setStatus('', '');
+  currentResult = null;
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.className = 'status';
+  if (!msg) return;
+  if (type === 'loading') {
+    el.innerHTML = `<div class="spinner"></div>${msg}`;
+    el.classList.add('visible', 'loading');
+  } else {
+    el.textContent = msg;
+    el.classList.add('visible', type);
+  }
+}
+
+async function doSearch() {
+  const q = document.getElementById('query').value.trim();
+  if (!q) return;
+  clearResults();
+  setStatus('Searching…', 'loading');
+  document.getElementById('search-btn').disabled = true;
+
+  try {
+    const res = await fetch('/.netlify/functions/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q, type: currentTab })
+    });
+    const data = await res.json();
+
+    if (data.Response === 'False') {
+      setStatus('No results found. Try a different title.', 'error');
+    } else if (data.Search.length === 1) {
+      setStatus('', '');
+      await loadResult(data.Search[0].imdbID);
+    } else {
+      setStatus('', '');
+      showMulti(data.Search.slice(0, 6));
+    }
+  } catch(e) {
+    setStatus('Search failed. Is the server running?', 'error');
+  }
+  document.getElementById('search-btn').disabled = false;
+}
+
+function showMulti(items) {
+  const list = document.getElementById('multi-list');
+  list.innerHTML = '';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'multi-item';
+    div.innerHTML = `
+      <i class="ti ti-film" style="font-size:18px;color:var(--text3);flex-shrink:0"></i>
+      <div>
+        <div class="multi-item-title">${item.Title}</div>
+        <div class="multi-item-meta">${item.Year}</div>
+      </div>`;
+    div.onclick = () => {
+      document.getElementById('multi').classList.remove('visible');
+      loadResult(item.imdbID);
+    };
+    list.appendChild(div);
+  });
+  document.getElementById('multi').classList.add('visible');
+}
+
+async function loadResult(imdbId) {
+  setStatus('Loading details…', 'loading');
+  try {
+    const res = await fetch('/.netlify/functions/detail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imdbId })
+    });
+    const d = await res.json();
+    if (d.Response === 'False') { setStatus('Could not load details.', 'error'); return; }
+
+    currentResult = { title: d.Title, url: `https://www.imdb.com/title/${d.imdbID}/` };
+
+    document.getElementById('res-title').textContent = d.Title;
+    document.getElementById('res-meta').textContent = [
+      d.Year, d.Rated !== 'N/A' ? d.Rated : null,
+      d.Genre ? d.Genre.split(',')[0].trim() : null,
+      d.Runtime !== 'N/A' ? d.Runtime : null
+    ].filter(Boolean).join(' · ');
+    document.getElementById('res-plot').textContent = d.Plot !== 'N/A' ? d.Plot : '';
+    document.getElementById('res-url').textContent = currentResult.url;
+    document.getElementById('add-label').textContent = currentTab === 'movie' ? 'Add to Movie list' : 'Add to TV Shows list';
+
+    const pw = document.getElementById('poster-wrap');
+    if (d.Poster && d.Poster !== 'N/A') {
+      pw.innerHTML = `<img class="poster" src="${d.Poster}" alt="${d.Title} poster" />`;
+    } else {
+      pw.innerHTML = `<div class="poster-ph"><i class="ti ti-photo-off"></i></div>`;
+    }
+
+    setStatus('', '');
+    document.getElementById('result').classList.add('visible');
+  } catch(e) {
+    setStatus('Failed to load details.', 'error');
+  }
+}
+
+async function addToNotion() {
+  if (!currentResult) return;
+  const btn = document.getElementById('add-btn');
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner" style="border-color:rgba(255,255,255,0.3);border-top-color:#fff"></div> Adding…`;
+
+  try {
+    const res = await fetch('/.netlify/functions/add-to-notion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageId: PAGE_IDS[currentTab], url: currentResult.url })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Notion error');
+
+    setStatus(`✓ "${currentResult.title}" added to your ${currentTab === 'movie' ? 'Movie' : 'TV Shows'} list`, 'success');
+    btn.innerHTML = `<i class="ti ti-check"></i> Added!`;
+    setTimeout(() => {
+      btn.innerHTML = `<i class="ti ti-circle-plus"></i> <span id="add-label">${currentTab === 'movie' ? 'Add to Movie list' : 'Add to TV Shows list'}</span>`;
+      btn.disabled = false;
+    }, 2500);
+  } catch(e) {
+    setStatus(`Could not add to Notion: ${e.message}`, 'error');
+    btn.innerHTML = `<i class="ti ti-circle-plus"></i> <span id="add-label">${currentTab === 'movie' ? 'Add to Movie list' : 'Add to TV Shows list'}</span>`;
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
