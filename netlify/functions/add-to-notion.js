@@ -22,7 +22,7 @@ exports.handler = async (event) => {
         children: [
           {
             object: 'block', type: 'column',
-            column: { children: [titleBlock] }
+            column: { children: [titleBlock, ...(plot ? [{ object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: plot.slice(0, 2000) } }] } }] : [])] }
           },
           {
             object: 'block', type: 'column',
