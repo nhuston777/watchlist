@@ -334,7 +334,7 @@ async function migrateSection() {
       body: JSON.stringify({ pageId: PAGE_IDS[currentTab], sectionId: currentSectionId })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Migration failed');
+    if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
 
     const missing = data.missing && data.missing.length > 0
       ? ` ⚠️ ${data.missing.length} may be missing: ${data.missing.join(', ')}`
