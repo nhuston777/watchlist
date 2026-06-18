@@ -188,6 +188,18 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .divider { height: 0.5px; background: var(--border); margin: 1.25rem 0; }
+
+  .section-picker { margin-bottom: 1rem; }
+  .section-picker-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .section-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .section-btn {
+    padding: 5px 12px; border: 0.5px solid var(--border2);
+    border-radius: var(--radius); background: var(--bg);
+    color: var(--text2); font-size: 13px; font-family: inherit;
+    cursor: pointer; transition: background 0.12s, color 0.12s;
+  }
+  .section-btn:hover { background: var(--bg2); }
+  .section-btn.active { background: var(--accent); color: var(--bg); border-color: transparent; }
 </style>
 </head>
 <body>
@@ -207,6 +219,11 @@
     <button class="tab" id="tab-tv" onclick="switchTab('tv')">
       <i class="ti ti-device-tv"></i> TV show
     </button>
+  </div>
+
+  <div class="section-picker" id="section-picker" style="display:none">
+    <div class="section-picker-label">Add to section</div>
+    <div class="section-btns" id="section-btns"></div>
   </div>
 
   <div class="search-row">
@@ -249,14 +266,51 @@ const PAGE_IDS = {
 
 let currentTab = 'movie';
 let currentResult = null;
+let currentSectionId = null;
 
-function switchTab(tab) {
+loadSections();
+
+async function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tab-movie').classList.toggle('active', tab === 'movie');
   document.getElementById('tab-tv').classList.toggle('active', tab === 'tv');
   document.getElementById('query').placeholder = tab === 'movie' ? 'Search for a movie...' : 'Search for a TV show...';
   document.getElementById('add-label').textContent = tab === 'movie' ? 'Add to Movie list' : 'Add to TV Shows list';
   clearResults();
+  await loadSections();
+}
+
+async function loadSections() {
+  currentSectionId = null;
+  const picker = document.getElementById('section-picker');
+  const btns = document.getElementById('section-btns');
+  picker.style.display = 'none';
+  btns.innerHTML = '';
+
+  try {
+    const res = await fetch('/.netlify/functions/get-sections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageId: PAGE_IDS[currentTab] })
+    });
+    const data = await res.json();
+    if (!data.sections || data.sections.length === 0) return;
+
+    data.sections.forEach((s, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'section-btn' + (i === 0 ? ' active' : '');
+      btn.textContent = s.name;
+      btn.onclick = () => {
+        document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSectionId = s.id;
+      };
+      btns.appendChild(btn);
+      if (i === 0) currentSectionId = s.id;
+    });
+
+    picker.style.display = 'block';
+  } catch(e) {}
 }
 
 function clearResults() {
@@ -382,7 +436,7 @@ async function addToNotion() {
     const res = await fetch('/.netlify/functions/add-to-notion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pageId: PAGE_IDS[currentTab], url: currentResult.url, poster: currentResult.poster, plot: currentResult.plot, title: currentResult.title })
+      body: JSON.stringify({ pageId: PAGE_IDS[currentTab], url: currentResult.url, poster: currentResult.poster, plot: currentResult.plot, title: currentResult.title, afterBlockId: currentSectionId })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Notion error');
