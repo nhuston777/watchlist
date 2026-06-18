@@ -17,7 +17,7 @@ exports.handler = async (event) => {
         children: [
           {
             object: 'block', type: 'column',
-            column: { children: [{ object: 'block', type: 'image', image: { type: 'external', external: { url: poster } } }] }
+            column: { children: [{ object: 'block', type: 'image', image: { type: 'external', external: { url: `https://images.weserv.nl/?url=${encodeURIComponent(poster)}&w=100` } } }] }
           },
           {
             object: 'block', type: 'column',
