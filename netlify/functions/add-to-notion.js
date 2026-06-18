@@ -4,13 +4,31 @@ exports.handler = async (event) => {
   if (!token) return { statusCode: 500, body: JSON.stringify({ error: 'NOTION_TOKEN not set' }) };
   const { pageId, url, poster, plot } = JSON.parse(event.body);
 
+  const bookmarkBlock = {
+    object: 'block', type: 'bookmark',
+    bookmark: { url, ...(plot ? { caption: [{ type: 'text', text: { content: plot.slice(0, 2000) } }] } : {}) }
+  };
+
   const children = [];
   if (poster) {
-    children.push({ object: 'block', type: 'image', image: { type: 'external', external: { url: poster } } });
+    children.push({
+      object: 'block', type: 'column_list',
+      column_list: {
+        children: [
+          {
+            object: 'block', type: 'column',
+            column: { children: [{ object: 'block', type: 'image', image: { type: 'external', external: { url: poster } } }] }
+          },
+          {
+            object: 'block', type: 'column',
+            column: { children: [bookmarkBlock] }
+          }
+        ]
+      }
+    });
+  } else {
+    children.push(bookmarkBlock);
   }
-  const bookmark = { url };
-  if (plot) bookmark.caption = [{ type: 'text', text: { content: plot.slice(0, 2000) } }];
-  children.push({ object: 'block', type: 'bookmark', bookmark });
 
   const r = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
     method: 'PATCH',
