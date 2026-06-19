@@ -422,7 +422,6 @@ async function switchManageMode(mode) {
 }
 
 async function loadShows() {
-  if (!currentSectionId) return;
   const list = document.getElementById('show-list');
   list.innerHTML = '';
   setManageStatus('Loading…', 'loading');

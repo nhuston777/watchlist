@@ -38,11 +38,15 @@ exports.handler = async (event) => {
   } while (cursor);
 
   const headingTypes = ['heading_1', 'heading_2', 'heading_3'];
-  const sectionStart = pageBlocks.findIndex(b => b.id === sectionId);
-  if (sectionStart === -1) return { statusCode: 400, body: JSON.stringify({ error: 'Section not found' }) };
-
-  const nextHeading = pageBlocks.findIndex((b, i) => i > sectionStart && headingTypes.includes(b.type));
-  const sectionBlocks = pageBlocks.slice(sectionStart + 1, nextHeading === -1 ? undefined : nextHeading);
+  let sectionBlocks;
+  if (sectionId) {
+    const sectionStart = pageBlocks.findIndex(b => b.id === sectionId);
+    if (sectionStart === -1) return { statusCode: 400, body: JSON.stringify({ error: 'Section not found' }) };
+    const nextHeading = pageBlocks.findIndex((b, i) => i > sectionStart && headingTypes.includes(b.type));
+    sectionBlocks = pageBlocks.slice(sectionStart + 1, nextHeading === -1 ? undefined : nextHeading);
+  } else {
+    sectionBlocks = pageBlocks.filter(b => !headingTypes.includes(b.type));
+  }
 
   const shows = await Promise.all(sectionBlocks.map(async (block) => {
     try {
