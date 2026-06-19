@@ -392,8 +392,8 @@ async function loadSections() {
     });
 
     picker.style.display = 'block';
-    document.getElementById('migrate-wrap').style.display = 'block';
   } catch(e) {}
+  document.getElementById('migrate-wrap').style.display = 'block';
 }
 
 function setManageStatus(msg, type) {
@@ -563,7 +563,6 @@ async function toggleCaughtUp(btn, leftColumnId, currentState, caughtUpBlockId) 
 }
 
 async function migrateSection() {
-  if (!currentSectionId) return;
   const btn = document.getElementById('migrate-btn');
   btn.disabled = true;
   btn.innerHTML = `<div class="spinner"></div> Converting…`;

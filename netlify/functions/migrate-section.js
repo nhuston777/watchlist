@@ -63,11 +63,16 @@ exports.handler = async (event) => {
     const allBlocks = await getPageBlocks(pageId);
 
     const headingTypes = ['heading_1', 'heading_2', 'heading_3'];
-    const sectionStart = allBlocks.findIndex(b => b.id === sectionId);
-    if (sectionStart === -1) return { statusCode: 400, body: JSON.stringify({ error: 'Section not found' }) };
-
-    const nextHeading = allBlocks.findIndex((b, i) => i > sectionStart && headingTypes.includes(b.type));
-    const sectionBlocks = allBlocks.slice(sectionStart + 1, nextHeading === -1 ? undefined : nextHeading);
+    let sectionBlocks;
+    let sectionStart = -1;
+    if (sectionId) {
+      sectionStart = allBlocks.findIndex(b => b.id === sectionId);
+      if (sectionStart === -1) return { statusCode: 400, body: JSON.stringify({ error: 'Section not found' }) };
+      const nextHeading = allBlocks.findIndex((b, i) => i > sectionStart && headingTypes.includes(b.type));
+      sectionBlocks = allBlocks.slice(sectionStart + 1, nextHeading === -1 ? undefined : nextHeading);
+    } else {
+      sectionBlocks = allBlocks;
+    }
 
     const bookmarks = sectionBlocks.filter(b => b.type === 'bookmark');
     beforeUrls = bookmarks.map(b => b.bookmark.url);
@@ -100,13 +105,21 @@ exports.handler = async (event) => {
     // Phase 3: insert all new entries in one call, in order
     const allChildren = omdbResults.map(r => r.blocks).filter(Boolean).flat();
     if (allChildren.length > 0) {
-      await insertAfter(sectionId, allChildren);
+      if (sectionId) {
+        await insertAfter(sectionId, allChildren);
+      } else {
+        await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
+          method: 'PATCH',
+          headers: notionHeaders,
+          body: JSON.stringify({ children: allChildren, position: { type: 'start' } })
+        });
+      }
     }
 
     const afterBlocks = await getPageBlocks(pageId);
-    const afterSectionStart = afterBlocks.findIndex(b => b.id === sectionId);
-    const afterNextHeading = afterBlocks.findIndex((b, i) => i > afterSectionStart && headingTypes.includes(b.type));
-    const afterSection = afterBlocks.slice(afterSectionStart + 1, afterNextHeading === -1 ? undefined : afterNextHeading);
+    const afterSectionStart = sectionId ? afterBlocks.findIndex(b => b.id === sectionId) : -1;
+    const afterNextHeading = afterSectionStart === -1 ? -1 : afterBlocks.findIndex((b, i) => i > afterSectionStart && headingTypes.includes(b.type));
+    const afterSection = afterSectionStart === -1 ? afterBlocks : afterBlocks.slice(afterSectionStart + 1, afterNextHeading === -1 ? undefined : afterNextHeading);
 
     const afterUrls = new Set(
       afterSection.flatMap(b => {
