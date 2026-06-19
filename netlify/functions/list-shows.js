@@ -44,48 +44,65 @@ exports.handler = async (event) => {
   const nextHeading = pageBlocks.findIndex((b, i) => i > sectionStart && headingTypes.includes(b.type));
   const sectionBlocks = pageBlocks.slice(sectionStart + 1, nextHeading === -1 ? undefined : nextHeading);
 
-  const columnLists = sectionBlocks.filter(b => b.type === 'column_list');
-
-  const shows = await Promise.all(columnLists.map(async (cl) => {
+  const shows = await Promise.all(sectionBlocks.map(async (block) => {
     try {
-      const columns = await getChildren(cl.id);
-      if (!columns.length) return null;
+      if (block.type === 'column_list') {
+        const columns = await getChildren(block.id);
+        if (!columns.length) return null;
 
-      const leftColumn = columns[0];
-      const leftChildren = await getChildren(leftColumn.id);
+        const leftColumn = columns[0];
+        const leftChildren = await getChildren(leftColumn.id);
 
-      const titleBlock = leftChildren.find(b =>
-        b.type === 'paragraph' &&
-        b.paragraph.rich_text.some(t => t.annotations?.bold && t.text?.link?.url)
-      );
-      if (!titleBlock) return null;
+        const titleBlock = leftChildren.find(b =>
+          b.type === 'paragraph' &&
+          b.paragraph.rich_text.some(t => t.annotations?.bold && t.text?.link?.url)
+        );
+        if (!titleBlock) return null;
 
-      const richText = titleBlock.paragraph.rich_text[0];
-      const title = richText.text.content;
-      const url = richText.text.link?.url;
-      const imdbMatch = url?.match(/tt\d+/);
+        const richText = titleBlock.paragraph.rich_text[0];
+        const title = richText.text.content;
+        const url = richText.text.link?.url;
+        const imdbMatch = url?.match(/tt\d+/);
 
-      // Detect caught up — paragraph with ✅ or to_do (legacy)
-      let caughtUpBlock = leftChildren.find(b =>
-        b.type === 'paragraph' &&
-        b.paragraph.rich_text.some(t => t.text?.content?.includes('Caught up'))
-      );
-      let caughtUpBlockId = caughtUpBlock?.id || null;
+        let caughtUpBlock = leftChildren.find(b =>
+          b.type === 'paragraph' &&
+          b.paragraph.rich_text.some(t => t.text?.content?.includes('Caught up'))
+        );
+        let caughtUpBlockId = caughtUpBlock?.id || null;
 
-      const legacyToDoBlock = leftChildren.find(b => b.type === 'to_do' && b.to_do.checked);
-      if (legacyToDoBlock) {
-        caughtUpBlockId = await convertToDoParagraph(leftColumn.id, legacyToDoBlock.id);
+        const legacyToDoBlock = leftChildren.find(b => b.type === 'to_do' && b.to_do.checked);
+        if (legacyToDoBlock) {
+          caughtUpBlockId = await convertToDoParagraph(leftColumn.id, legacyToDoBlock.id);
+        }
+
+        return {
+          columnListId: block.id,
+          leftColumnId: leftColumn.id,
+          title, url,
+          imdbId: imdbMatch ? imdbMatch[0] : null,
+          caughtUp: !!(caughtUpBlock || legacyToDoBlock),
+          caughtUpBlockId
+        };
       }
 
-      return {
-        columnListId: cl.id,
-        leftColumnId: leftColumn.id,
-        title,
-        url,
-        imdbId: imdbMatch ? imdbMatch[0] : null,
-        caughtUp: !!(caughtUpBlock || legacyToDoBlock),
-        caughtUpBlockId
-      };
+      if (block.type === 'paragraph') {
+        const rt = block.paragraph.rich_text;
+        const boldLink = rt.find(t => t.annotations?.bold && t.text?.link?.url);
+        if (!boldLink) return null;
+        const title = boldLink.text.content;
+        const url = boldLink.text.link.url;
+        const imdbMatch = url?.match(/tt\d+/);
+        return {
+          columnListId: block.id,
+          leftColumnId: null,
+          title, url,
+          imdbId: imdbMatch ? imdbMatch[0] : null,
+          caughtUp: false,
+          caughtUpBlockId: null
+        };
+      }
+
+      return null;
     } catch(e) {
       return null;
     }

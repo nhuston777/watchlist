@@ -247,6 +247,9 @@
     <button class="tab active" id="tab-movie" onclick="switchTab('movie')">
       <i class="ti ti-device-tv-old"></i> Movie
     </button>
+    <button class="tab" id="tab-fam_movie" onclick="switchTab('fam_movie')">
+      <i class="ti ti-users"></i> Fam Movie
+    </button>
     <button class="tab" id="tab-tv" onclick="switchTab('tv')">
       <i class="ti ti-device-tv"></i> TV show
     </button>
@@ -301,6 +304,9 @@
       <button class="tab active" id="manage-tab-movie" onclick="switchManageMode('movie')">
         <i class="ti ti-device-tv-old"></i> Movies
       </button>
+      <button class="tab" id="manage-tab-fam_movie" onclick="switchManageMode('fam_movie')">
+        <i class="ti ti-users"></i> Fam Movies
+      </button>
       <button class="tab" id="manage-tab-tv" onclick="switchManageMode('tv')">
         <i class="ti ti-device-tv"></i> TV Shows
       </button>
@@ -312,8 +318,9 @@
 
 <script>
 const PAGE_IDS = {
-  movie: '9599f1fb-5a4f-4dd4-b060-5a090e004a61',
-  tv:    '881ebd59-d776-44a9-a563-02d6ff006e00'
+  movie:     '9599f1fb-5a4f-4dd4-b060-5a090e004a61',
+  tv:        '881ebd59-d776-44a9-a563-02d6ff006e00',
+  fam_movie: '098e01dc6edf442385758f06a252baab'
 };
 
 let currentTab = 'movie';
@@ -326,6 +333,7 @@ loadSections();
 async function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tab-movie').classList.toggle('active', tab === 'movie');
+  document.getElementById('tab-fam_movie').classList.toggle('active', tab === 'fam_movie');
   document.getElementById('tab-tv').classList.toggle('active', tab === 'tv');
   document.getElementById('tab-manage').classList.toggle('active', tab === 'manage');
 
@@ -336,8 +344,8 @@ async function switchTab(tab) {
   clearResults();
 
   if (!isManage) {
-    document.getElementById('query').placeholder = tab === 'movie' ? 'Search for a movie...' : 'Search for a TV show...';
-    document.getElementById('add-label').textContent = tab === 'movie' ? 'Add to Movie list' : 'Add to TV Shows list';
+    document.getElementById('query').placeholder = tab === 'tv' ? 'Search for a TV show...' : 'Search for a movie...';
+    document.getElementById('add-label').textContent = tab === 'tv' ? 'Add to TV Shows list' : tab === 'fam_movie' ? 'Add to Fam Movies list' : 'Add to Movie list';
     clearResults();
   }
 
@@ -405,6 +413,7 @@ function setManageStatus(msg, type) {
 async function switchManageMode(mode) {
   manageMode = mode;
   document.getElementById('manage-tab-movie').classList.toggle('active', mode === 'movie');
+  document.getElementById('manage-tab-fam_movie').classList.toggle('active', mode === 'fam_movie');
   document.getElementById('manage-tab-tv').classList.toggle('active', mode === 'tv');
   currentTab = mode;
   await loadSections();
@@ -427,7 +436,7 @@ async function loadShows() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to load shows');
     setManageStatus('', '');
-    if (!data.shows.length) { setManageStatus('No shows found in this section.', 'error'); return; }
+    if (!data.shows.length) { setManageStatus(`No ${manageMode === 'movie' ? 'movies' : 'shows'} found in this section.`, 'error'); return; }
     const allSections = Array.from(document.querySelectorAll('.section-btn')).map(b => ({
       id: b.dataset.sectionId, name: b.textContent.trim()
     }));
@@ -435,7 +444,7 @@ async function loadShows() {
     data.shows.forEach(show => {
       const item = document.createElement('div');
       item.className = 'show-item';
-      const isMovie = manageMode === 'movie';
+      const isMovie = manageMode === 'movie' || manageMode === 'fam_movie';
       item.innerHTML = `
         <div class="show-row">
           <span class="show-title">${show.title}</span>
