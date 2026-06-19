@@ -97,7 +97,7 @@
     display: flex; align-items: center; justify-content: center; gap: 6px;
   }
   .tab i { font-size: 15px; }
-  .tab:first-child { border-right: 0.5px solid var(--border); }
+  .tab:not(:last-child) { border-right: 0.5px solid var(--border); }
   .tab.active { background: var(--bg2); color: var(--text); font-weight: 500; }
 
   .search-row { display: flex; gap: 8px; margin-bottom: 1rem; }
@@ -190,6 +190,33 @@
 
   .divider { height: 0.5px; background: var(--border); margin: 1.25rem 0; }
 
+  .show-list { display: flex; flex-direction: column; gap: 8px; }
+  .show-item { border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .show-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: var(--bg);
+  }
+  .show-title { flex: 1; font-size: 14px; font-weight: 500; color: var(--text); }
+  .show-caught { font-size: 12px; color: var(--text3); margin-right: 2px; }
+  .show-caught.yes { color: var(--success-text); }
+  .btn-sm {
+    padding: 0 10px; height: 30px; font-size: 12px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius);
+    background: var(--bg); color: var(--text2); font-family: inherit;
+    cursor: pointer; display: flex; align-items: center; gap: 5px;
+    transition: background 0.12s; white-space: nowrap; flex-shrink: 0;
+  }
+  .btn-sm:hover { background: var(--bg2); }
+  .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm.active { background: var(--accent); color: var(--bg); border-color: transparent; }
+  .seasons-panel { border-top: 0.5px solid var(--border); background: var(--bg2); padding: 10px 12px; display: none; }
+  .seasons-panel.open { display: block; }
+  .season-card { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 0.5px solid var(--border); }
+  .season-card:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .season-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .season-meta { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+  .season-overview { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
   .section-picker { margin-bottom: 1rem; }
   .section-picker-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
   .section-btns { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -219,6 +246,9 @@
     </button>
     <button class="tab" id="tab-tv" onclick="switchTab('tv')">
       <i class="ti ti-device-tv"></i> TV show
+    </button>
+    <button class="tab" id="tab-manage" onclick="switchTab('manage')">
+      <i class="ti ti-list"></i> Manage
     </button>
   </div>
 
@@ -263,6 +293,10 @@
       <span id="add-label">Add to Movie list</span>
     </button>
   </div>
+  <div id="manage-view" style="display:none">
+    <div class="status" id="manage-status"></div>
+    <div class="show-list" id="show-list"></div>
+  </div>
 </div>
 
 <script>
@@ -281,10 +315,31 @@ async function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tab-movie').classList.toggle('active', tab === 'movie');
   document.getElementById('tab-tv').classList.toggle('active', tab === 'tv');
-  document.getElementById('query').placeholder = tab === 'movie' ? 'Search for a movie...' : 'Search for a TV show...';
-  document.getElementById('add-label').textContent = tab === 'movie' ? 'Add to Movie list' : 'Add to TV Shows list';
-  clearResults();
-  await loadSections();
+  document.getElementById('tab-manage').classList.toggle('active', tab === 'manage');
+
+  const isManage = tab === 'manage';
+  document.getElementById('manage-view').style.display = isManage ? 'block' : 'none';
+  document.querySelector('.search-row').style.display = isManage ? 'none' : 'flex';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('multi').style.display = 'none';
+  document.getElementById('status').style.display = 'none';
+  document.getElementById('migrate-wrap').style.display = 'none';
+
+  if (!isManage) {
+    document.getElementById('query').placeholder = tab === 'movie' ? 'Search for a movie...' : 'Search for a TV show...';
+    document.getElementById('add-label').textContent = tab === 'movie' ? 'Add to Movie list' : 'Add to TV Shows list';
+    clearResults();
+  }
+
+  if (tab === 'manage') {
+    currentTab = 'tv';
+    await loadSections();
+    currentTab = 'manage';
+    document.getElementById('migrate-wrap').style.display = 'none';
+    await loadShows();
+  } else {
+    await loadSections();
+  }
 }
 
 async function loadSections() {
@@ -307,10 +362,11 @@ async function loadSections() {
       const btn = document.createElement('button');
       btn.className = 'section-btn' + (i === 0 ? ' active' : '');
       btn.textContent = s.name;
-      btn.onclick = () => {
+      btn.onclick = async () => {
         document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentSectionId = s.id;
+        if (currentTab === 'manage') await loadShows();
       };
       btns.appendChild(btn);
       if (i === 0) currentSectionId = s.id;
@@ -319,6 +375,113 @@ async function loadSections() {
     picker.style.display = 'block';
     document.getElementById('migrate-wrap').style.display = 'block';
   } catch(e) {}
+}
+
+function setManageStatus(msg, type) {
+  const el = document.getElementById('manage-status');
+  el.className = 'status';
+  if (!msg) { el.style.display = 'none'; return; }
+  if (type === 'loading') {
+    el.innerHTML = `<div class="spinner"></div>${msg}`;
+    el.classList.add('visible', 'loading');
+  } else {
+    el.textContent = msg;
+    el.classList.add('visible', type);
+  }
+  el.style.display = '';
+}
+
+async function loadShows() {
+  if (!currentSectionId) return;
+  const list = document.getElementById('show-list');
+  list.innerHTML = '';
+  setManageStatus('Loading shows…', 'loading');
+  try {
+    const res = await fetch('/.netlify/functions/list-shows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageId: PAGE_IDS['tv'], sectionId: currentSectionId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load shows');
+    setManageStatus('', '');
+    if (!data.shows.length) { setManageStatus('No shows found in this section.', 'error'); return; }
+    data.shows.forEach(show => {
+      const item = document.createElement('div');
+      item.className = 'show-item';
+      item.innerHTML = `
+        <div class="show-row">
+          <span class="show-title">${show.title}</span>
+          ${show.imdbId ? `<button class="btn-sm" onclick="toggleSeasons(this, '${show.imdbId}')"><i class="ti ti-chevron-down"></i> Seasons</button>` : ''}
+          <button class="btn-sm ${show.caughtUp ? 'active' : ''}" id="cu-${show.leftColumnId}"
+            onclick="toggleCaughtUp(this, '${show.leftColumnId}', ${show.caughtUp}, '${show.caughtUpBlockId || ''}')">
+            <i class="ti ti-check"></i> ${show.caughtUp ? 'Caught up' : 'Mark caught up'}
+          </button>
+        </div>
+        <div class="seasons-panel" id="sp-${show.imdbId}"></div>`;
+      list.appendChild(item);
+    });
+  } catch(e) {
+    setManageStatus(`Error: ${e.message}`, 'error');
+  }
+}
+
+async function toggleSeasons(btn, imdbId) {
+  const panel = document.getElementById(`sp-${imdbId}`);
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    btn.innerHTML = '<i class="ti ti-chevron-down"></i> Seasons';
+    return;
+  }
+  if (panel.dataset.loaded) {
+    panel.classList.add('open');
+    btn.innerHTML = '<i class="ti ti-chevron-up"></i> Seasons';
+    return;
+  }
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>';
+  try {
+    const res = await fetch('/.netlify/functions/get-tv-seasons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imdbId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load seasons');
+    panel.innerHTML = data.seasons.map(s => `
+      <div class="season-card">
+        <div class="season-name">${s.name}</div>
+        <div class="season-meta">${s.airDate ? new Date(s.airDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'TBA'} · ${s.episodeCount} episode${s.episodeCount !== 1 ? 's' : ''}</div>
+        ${s.overview ? `<div class="season-overview">${s.overview}</div>` : ''}
+      </div>`).join('');
+    panel.dataset.loaded = '1';
+    panel.classList.add('open');
+    btn.innerHTML = '<i class="ti ti-chevron-up"></i> Seasons';
+  } catch(e) {
+    panel.innerHTML = `<div style="font-size:12px;color:var(--error-text)">${e.message}</div>`;
+    panel.classList.add('open');
+    btn.innerHTML = '<i class="ti ti-chevron-down"></i> Seasons';
+  }
+  btn.disabled = false;
+}
+
+async function toggleCaughtUp(btn, leftColumnId, currentState, caughtUpBlockId) {
+  btn.disabled = true;
+  const newState = !currentState;
+  try {
+    const res = await fetch('/.netlify/functions/mark-caught-up', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leftColumnId, caughtUp: newState, caughtUpBlockId })
+    });
+    if (!res.ok) throw new Error('Failed');
+    btn.className = `btn-sm ${newState ? 'active' : ''}`;
+    btn.innerHTML = `<i class="ti ti-check"></i> ${newState ? 'Caught up' : 'Mark caught up'}`;
+    btn.setAttribute('onclick', `toggleCaughtUp(this, '${leftColumnId}', ${newState}, '${caughtUpBlockId}')`);
+  } catch(e) {
+    setManageStatus('Could not update caught up status.', 'error');
+  }
+  btn.disabled = false;
 }
 
 async function migrateSection() {
