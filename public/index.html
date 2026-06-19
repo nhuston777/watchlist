@@ -377,7 +377,8 @@ async function loadSections() {
     if (data.sections && data.sections.length > 0) {
       data.sections.forEach((s, i) => {
         const btn = document.createElement('button');
-        btn.className = 'section-btn' + (i === 0 ? ' active' : '');
+        const isMovieMode = manageMode === 'movie' || manageMode === 'fam_movie';
+        btn.className = 'section-btn' + (i === 0 && !isMovieMode ? ' active' : '');
         btn.textContent = s.name;
         btn.dataset.sectionId = s.id;
         btn.onclick = async () => {
@@ -387,7 +388,7 @@ async function loadSections() {
           if (currentTab === 'manage') await loadShows();
         };
         btns.appendChild(btn);
-        if (i === 0) currentSectionId = s.id;
+        if (i === 0 && !isMovieMode) currentSectionId = s.id;
       });
       picker.style.display = 'block';
     }
