@@ -347,12 +347,6 @@ async function migrateSection() {
         else lines.push(`✗ ${label} (${r.reason})`);
       });
     }
-if (data.missing && data.missing.length > 0) {
-      lines.push('', `⚠️ Missing after migration:`);
-      data.missing.forEach(u => lines.push(`  ${u}`));
-    } else {
-      lines.push('', 'All entries accounted for.');
-    }
     setStatus(lines.join('\n'), 'success');
   } catch(e) {
     setStatus(`Migration failed: ${e.message}`, 'error');
