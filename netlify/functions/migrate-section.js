@@ -96,9 +96,9 @@ exports.handler = async (event) => {
           poster = omdbData.Poster !== 'N/A' ? omdbData.Poster : null;
         }
 
-        await deleteBlock(bookmark.id);
         try {
           await insertAfter(sectionId, buildEntry(title, url, plot, poster));
+          await deleteBlock(bookmark.id);
           results.unshift({ url, title: title || url, status: 'converted' });
         } catch(insertErr) {
           results.unshift({ url, title: title || url, status: 'failed', reason: `insert failed: ${insertErr.message}` });
