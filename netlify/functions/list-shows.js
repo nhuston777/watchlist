@@ -17,6 +17,16 @@ exports.handler = async (event) => {
     return data.results || [];
   }
 
+  async function convertToDoParagraph(leftColumnId, toDoBlockId) {
+    await fetch(`https://api.notion.com/v1/blocks/${toDoBlockId}`, { method: 'DELETE', headers: notionHeaders });
+    const r = await fetch(`https://api.notion.com/v1/blocks/${leftColumnId}/children`, {
+      method: 'PATCH', headers: notionHeaders,
+      body: JSON.stringify({ children: [{ object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: '✅ Caught up' } }] } }] })
+    });
+    const data = await r.json();
+    return data.results?.[0]?.id || null;
+  }
+
   const pageBlocks = [];
   let cursor;
   do {
@@ -55,7 +65,17 @@ exports.handler = async (event) => {
       const url = richText.text.link?.url;
       const imdbMatch = url?.match(/tt\d+/);
 
-      const caughtUpBlock = leftChildren.find(b => b.type === 'to_do' && b.to_do.checked);
+      // Detect caught up — paragraph with ✅ or to_do (legacy)
+      let caughtUpBlock = leftChildren.find(b =>
+        b.type === 'paragraph' &&
+        b.paragraph.rich_text.some(t => t.text?.content?.includes('Caught up'))
+      );
+      let caughtUpBlockId = caughtUpBlock?.id || null;
+
+      const legacyToDoBlock = leftChildren.find(b => b.type === 'to_do' && b.to_do.checked);
+      if (legacyToDoBlock) {
+        caughtUpBlockId = await convertToDoParagraph(leftColumn.id, legacyToDoBlock.id);
+      }
 
       return {
         columnListId: cl.id,
@@ -63,8 +83,8 @@ exports.handler = async (event) => {
         title,
         url,
         imdbId: imdbMatch ? imdbMatch[0] : null,
-        caughtUp: !!caughtUpBlock,
-        caughtUpBlockId: caughtUpBlock?.id || null
+        caughtUp: !!(caughtUpBlock || legacyToDoBlock),
+        caughtUpBlockId
       };
     } catch(e) {
       return null;

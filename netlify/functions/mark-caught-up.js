@@ -17,11 +17,8 @@ exports.handler = async (event) => {
       headers: notionHeaders,
       body: JSON.stringify({
         children: [{
-          object: 'block', type: 'to_do',
-          to_do: {
-            rich_text: [{ type: 'text', text: { content: 'Caught up' } }],
-            checked: true
-          }
+          object: 'block', type: 'paragraph',
+          paragraph: { rich_text: [{ type: 'text', text: { content: '✅ Caught up' } }] }
         }]
       })
     });

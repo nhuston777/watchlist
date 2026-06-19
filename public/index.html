@@ -216,6 +216,9 @@
   .season-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
   .season-meta { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
   .season-overview { font-size: 12px; color: var(--text2); line-height: 1.5; }
+  .move-picker { display: none; padding: 8px 12px; border-top: 0.5px solid var(--border); background: var(--bg2); flex-wrap: wrap; gap: 6px; }
+  .move-picker.open { display: flex; align-items: center; }
+  .move-picker-label { font-size: 12px; color: var(--text2); margin-right: 4px; }
 
   .section-picker { margin-bottom: 1rem; }
   .section-picker-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -362,6 +365,7 @@ async function loadSections() {
       const btn = document.createElement('button');
       btn.className = 'section-btn' + (i === 0 ? ' active' : '');
       btn.textContent = s.name;
+      btn.dataset.sectionId = s.id;
       btn.onclick = async () => {
         document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -406,6 +410,10 @@ async function loadShows() {
     if (!res.ok) throw new Error(data.error || 'Failed to load shows');
     setManageStatus('', '');
     if (!data.shows.length) { setManageStatus('No shows found in this section.', 'error'); return; }
+    const allSections = Array.from(document.querySelectorAll('.section-btn')).map(b => ({
+      id: b.dataset.sectionId, name: b.textContent.trim()
+    }));
+
     data.shows.forEach(show => {
       const item = document.createElement('div');
       item.className = 'show-item';
@@ -413,16 +421,57 @@ async function loadShows() {
         <div class="show-row">
           <span class="show-title">${show.title}</span>
           ${show.imdbId ? `<button class="btn-sm" onclick="toggleSeasons(this, '${show.imdbId}')"><i class="ti ti-chevron-down"></i> Seasons</button>` : ''}
-          <button class="btn-sm ${show.caughtUp ? 'active' : ''}" id="cu-${show.leftColumnId}"
+          <button class="btn-sm ${show.caughtUp ? 'active' : ''}"
             onclick="toggleCaughtUp(this, '${show.leftColumnId}', ${show.caughtUp}, '${show.caughtUpBlockId || ''}')">
             <i class="ti ti-check"></i> ${show.caughtUp ? 'Caught up' : 'Mark caught up'}
           </button>
+          <button class="btn-sm" onclick="toggleMovePicker(this)">
+            <i class="ti ti-arrow-right"></i> Move to
+          </button>
         </div>
-        <div class="seasons-panel" id="sp-${show.imdbId}"></div>`;
+        <div class="move-picker" id="mp-${show.columnListId}">
+          <span class="move-picker-label">Move to:</span>
+        </div>
+        <div class="seasons-panel" id="sp-${show.imdbId || show.columnListId}"></div>`;
       list.appendChild(item);
+
+      // Populate move picker with all sections except current
+      const picker = document.getElementById(`mp-${show.columnListId}`);
+      allSections.forEach(sec => {
+        if (sec.id === currentSectionId) return;
+        const b = document.createElement('button');
+        b.className = 'btn-sm';
+        b.textContent = sec.name;
+        b.onclick = () => moveShow(show.columnListId, sec.id, item, b);
+        picker.appendChild(b);
+      });
     });
   } catch(e) {
     setManageStatus(`Error: ${e.message}`, 'error');
+  }
+}
+
+function toggleMovePicker(btn) {
+  const row = btn.closest('.show-row');
+  const picker = row.nextElementSibling;
+  picker.classList.toggle('open');
+}
+
+async function moveShow(columnListId, targetSectionId, itemEl, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const res = await fetch('/.netlify/functions/move-show', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageId: PAGE_IDS['tv'], columnListId, targetSectionId })
+    });
+    if (!res.ok) throw new Error('Move failed');
+    itemEl.remove();
+  } catch(e) {
+    setManageStatus(`Could not move show: ${e.message}`, 'error');
+    btn.disabled = false;
+    btn.textContent = btn.dataset.name;
   }
 }
 
