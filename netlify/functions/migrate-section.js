@@ -72,43 +72,33 @@ exports.handler = async (event) => {
     const bookmarks = sectionBlocks.filter(b => b.type === 'bookmark');
     beforeUrls = bookmarks.map(b => b.bookmark.url);
 
-    const results = [];
-    const toInsert = [];
-
-    // Phase 1: fetch all OMDB data
-    for (const bookmark of bookmarks) {
+    // Phase 1: fetch all OMDB data in parallel
+    const omdbResults = await Promise.all(bookmarks.map(async (bookmark) => {
       const url = bookmark.bookmark.url;
       const imdbMatch = url.match(/tt\d+/);
-      if (!imdbMatch) {
-        results.push({ url, status: 'skipped', reason: 'not an IMDB link' });
-        toInsert.push(null);
-        continue;
-      }
+      if (!imdbMatch) return { url, status: 'skipped', reason: 'not an IMDB link', blocks: null };
       try {
-        const imdbId = imdbMatch[0];
-        let title, plot, poster;
-        const omdbRes = await fetch(`https://www.omdbapi.com/?apikey=${omdbKey}&i=${imdbId}&plot=short`);
+        const omdbRes = await fetch(`https://www.omdbapi.com/?apikey=${omdbKey}&i=${imdbMatch[0]}&plot=short`);
         const omdbData = await omdbRes.json();
+        let title, plot, poster;
         if (omdbData.Response === 'True') {
           title = omdbData.Title;
           plot = omdbData.Plot !== 'N/A' ? omdbData.Plot : null;
           poster = omdbData.Poster !== 'N/A' ? omdbData.Poster : null;
         }
-        results.push({ url, title: title || url, status: 'converted' });
-        toInsert.push(buildEntry(title, url, plot, poster));
+        return { url, title: title || url, status: 'converted', blocks: buildEntry(title, url, plot, poster) };
       } catch(e) {
-        results.push({ url, status: 'failed', reason: e.message });
-        toInsert.push(null);
+        return { url, status: 'failed', reason: e.message, blocks: null };
       }
-    }
+    }));
 
-    // Phase 2: delete all old bookmarks
-    for (const bookmark of bookmarks) {
-      await deleteBlock(bookmark.id);
-    }
+    const results = omdbResults.map(({ url, title, status, reason }) => ({ url, title, status, reason }));
+
+    // Phase 2: delete all old bookmarks in parallel
+    await Promise.all(bookmarks.map(b => deleteBlock(b.id)));
 
     // Phase 3: insert all new entries in one call, in order
-    const allChildren = toInsert.filter(Boolean).flat();
+    const allChildren = omdbResults.map(r => r.blocks).filter(Boolean).flat();
     if (allChildren.length > 0) {
       await insertAfter(sectionId, allChildren);
     }
