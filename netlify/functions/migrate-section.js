@@ -74,15 +74,13 @@ exports.handler = async (event) => {
     beforeUrls = bookmarks.map(b => b.bookmark.url);
 
     const results = [];
-    let lastInsertedId = sectionId;
 
-    for (const bookmark of bookmarks) {
+    for (const bookmark of [...bookmarks].reverse()) {
       const url = bookmark.bookmark.url;
       const imdbMatch = url.match(/tt\d+/);
 
       if (!imdbMatch) {
-        results.push({ url, status: 'skipped', reason: 'not an IMDB link' });
-        lastInsertedId = bookmark.id;
+        results.unshift({ url, status: 'skipped', reason: 'not an IMDB link' });
         continue;
       }
 
@@ -98,17 +96,15 @@ exports.handler = async (event) => {
           poster = omdbData.Poster !== 'N/A' ? omdbData.Poster : null;
         }
 
-        const prevId = lastInsertedId;
         await deleteBlock(bookmark.id);
         try {
-          const inserted = await insertAfter(prevId, buildEntry(title, url, plot, poster));
-          lastInsertedId = inserted[inserted.length - 1].id;
-          results.push({ url, title: title || url, status: 'converted' });
+          await insertAfter(sectionId, buildEntry(title, url, plot, poster));
+          results.unshift({ url, title: title || url, status: 'converted' });
         } catch(insertErr) {
-          results.push({ url, title: title || url, status: 'failed', reason: `insert failed: ${insertErr.message}` });
+          results.unshift({ url, title: title || url, status: 'failed', reason: `insert failed: ${insertErr.message}` });
         }
       } catch(e) {
-        results.push({ url, status: 'failed', reason: e.message });
+        results.unshift({ url, status: 'failed', reason: e.message });
       }
     }
 
