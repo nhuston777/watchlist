@@ -32,13 +32,14 @@ exports.handler = async (event) => {
   }
 
   async function insertAfter(afterBlockId, children) {
+    const payload = { children, position: { type: 'after_block', after_block: { id: afterBlockId } } };
     const r = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
       method: 'PATCH',
       headers: notionHeaders,
-      body: JSON.stringify({ children, position: { type: 'after_block', after_block: { id: afterBlockId } } })
+      body: JSON.stringify(payload)
     });
     const data = await r.json();
-    return data.results;
+    return { results: data.results, status: r.status, payload, response: data };
   }
 
   function buildEntry(title, url, plot, poster) {
@@ -110,8 +111,9 @@ exports.handler = async (event) => {
 
     // Phase 3: insert all new entries in one call, in order
     const allChildren = toInsert.filter(Boolean).flat();
+    let insertDebug = null;
     if (allChildren.length > 0) {
-      await insertAfter(sectionId, allChildren);
+      insertDebug = await insertAfter(sectionId, allChildren);
     }
 
     const afterBlocks = await getPageBlocks(pageId);
@@ -131,7 +133,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ results, beforeUrls, beforeCount: beforeUrls.length, afterCount: results.filter(r => r.status === 'converted').length, missing })
+      body: JSON.stringify({ results, beforeUrls, beforeCount: beforeUrls.length, afterCount: results.filter(r => r.status === 'converted').length, missing, debug: { pageId, sectionId, insertStatus: insertDebug?.status, insertResponse: insertDebug?.response } })
     };
   } catch(e) {
     return {
