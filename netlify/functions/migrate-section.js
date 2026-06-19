@@ -74,20 +74,20 @@ exports.handler = async (event) => {
     beforeUrls = bookmarks.map(b => b.bookmark.url);
 
     const results = [];
+    const toInsert = [];
 
-    for (const bookmark of [...bookmarks].reverse()) {
+    // Phase 1: fetch all OMDB data
+    for (const bookmark of bookmarks) {
       const url = bookmark.bookmark.url;
       const imdbMatch = url.match(/tt\d+/);
-
       if (!imdbMatch) {
-        results.unshift({ url, status: 'skipped', reason: 'not an IMDB link' });
+        results.push({ url, status: 'skipped', reason: 'not an IMDB link' });
+        toInsert.push(null);
         continue;
       }
-
       try {
         const imdbId = imdbMatch[0];
         let title, plot, poster;
-
         const omdbRes = await fetch(`https://www.omdbapi.com/?apikey=${omdbKey}&i=${imdbId}&plot=short`);
         const omdbData = await omdbRes.json();
         if (omdbData.Response === 'True') {
@@ -95,17 +95,23 @@ exports.handler = async (event) => {
           plot = omdbData.Plot !== 'N/A' ? omdbData.Plot : null;
           poster = omdbData.Poster !== 'N/A' ? omdbData.Poster : null;
         }
-
-        try {
-          await insertAfter(sectionId, buildEntry(title, url, plot, poster));
-          await deleteBlock(bookmark.id);
-          results.unshift({ url, title: title || url, status: 'converted' });
-        } catch(insertErr) {
-          results.unshift({ url, title: title || url, status: 'failed', reason: `insert failed: ${insertErr.message}` });
-        }
+        results.push({ url, title: title || url, status: 'converted' });
+        toInsert.push(buildEntry(title, url, plot, poster));
       } catch(e) {
-        results.unshift({ url, status: 'failed', reason: e.message });
+        results.push({ url, status: 'failed', reason: e.message });
+        toInsert.push(null);
       }
+    }
+
+    // Phase 2: delete all old bookmarks
+    for (const bookmark of bookmarks) {
+      await deleteBlock(bookmark.id);
+    }
+
+    // Phase 3: insert all new entries in one call, in order
+    const allChildren = toInsert.filter(Boolean).flat();
+    if (allChildren.length > 0) {
+      await insertAfter(sectionId, allChildren);
     }
 
     const afterBlocks = await getPageBlocks(pageId);
