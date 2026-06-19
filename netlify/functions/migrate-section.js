@@ -58,6 +58,8 @@ exports.handler = async (event) => {
     }];
   }
 
+  let beforeUrls = [];
+
   try {
     const allBlocks = await getPageBlocks(pageId);
 
@@ -69,7 +71,7 @@ exports.handler = async (event) => {
     const sectionBlocks = allBlocks.slice(sectionStart + 1, nextHeading === -1 ? undefined : nextHeading);
 
     const bookmarks = sectionBlocks.filter(b => b.type === 'bookmark');
-    const beforeUrls = bookmarks.map(b => b.bookmark.url);
+    beforeUrls = bookmarks.map(b => b.bookmark.url);
 
     const results = [];
     let lastInsertedId = sectionId;
@@ -77,15 +79,17 @@ exports.handler = async (event) => {
     for (const bookmark of bookmarks) {
       const url = bookmark.bookmark.url;
       const imdbMatch = url.match(/tt\d+/);
+
       if (!imdbMatch) {
         results.push({ url, status: 'skipped', reason: 'not an IMDB link' });
         lastInsertedId = bookmark.id;
         continue;
       }
 
-      const imdbId = imdbMatch[0];
-      let title, plot, poster;
       try {
+        const imdbId = imdbMatch[0];
+        let title, plot, poster;
+
         const omdbRes = await fetch(`https://www.omdbapi.com/?apikey=${omdbKey}&i=${imdbId}&plot=short`);
         const omdbData = await omdbRes.json();
         if (omdbData.Response === 'True') {
@@ -93,12 +97,15 @@ exports.handler = async (event) => {
           plot = omdbData.Plot !== 'N/A' ? omdbData.Plot : null;
           poster = omdbData.Poster !== 'N/A' ? omdbData.Poster : null;
         }
-      } catch(e) {}
 
-      await deleteBlock(bookmark.id);
-      const inserted = await insertAfter(lastInsertedId, buildEntry(title, url, plot, poster));
-      lastInsertedId = inserted[inserted.length - 1].id;
-      results.push({ url, title: title || url, status: 'converted' });
+        await deleteBlock(bookmark.id);
+        const inserted = await insertAfter(lastInsertedId, buildEntry(title, url, plot, poster));
+        lastInsertedId = inserted[inserted.length - 1].id;
+        results.push({ url, title: title || url, status: 'converted' });
+      } catch(e) {
+        results.push({ url, status: 'failed', reason: e.message });
+        lastInsertedId = bookmark.id;
+      }
     }
 
     const afterBlocks = await getPageBlocks(pageId);
@@ -107,22 +114,24 @@ exports.handler = async (event) => {
     const afterSection = afterBlocks.slice(afterSectionStart + 1, afterNextHeading === -1 ? undefined : afterNextHeading);
 
     const afterUrls = new Set(
-      afterSection
-        .flatMap(b => {
-          if (b.type === 'paragraph') return b.paragraph.rich_text.flatMap(t => t.href ? [t.href] : []);
-          if (b.type === 'column_list') return [];
-          return [];
-        })
+      afterSection.flatMap(b => {
+        if (b.type === 'paragraph') return b.paragraph.rich_text.flatMap(t => t.href ? [t.href] : []);
+        return [];
+      })
     );
 
-    const missing = beforeUrls.filter(u => !afterUrls.has(u));
+    const missing = beforeUrls.filter(u => !afterUrls.has(u) && results.find(r => r.url === u)?.status !== 'skipped');
 
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ results, beforeCount: beforeUrls.length, afterCount: results.filter(r => r.status === 'converted').length, missing })
+      body: JSON.stringify({ results, beforeUrls, beforeCount: beforeUrls.length, afterCount: results.filter(r => r.status === 'converted').length, missing })
     };
   } catch(e) {
-    return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: e.message, beforeUrls })
+    };
   }
 };

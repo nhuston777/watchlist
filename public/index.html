@@ -336,12 +336,20 @@ async function migrateSection() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
 
+    const beforeList = data.beforeUrls && data.beforeUrls.length ? `\n\nOriginal bookmarks:\n${data.beforeUrls.join('\n')}` : '';
     const missing = data.missing && data.missing.length > 0
-      ? ` ⚠️ ${data.missing.length} may be missing: ${data.missing.join(', ')}`
-      : ' All entries accounted for.';
-    setStatus(`✓ Converted ${data.afterCount} of ${data.beforeCount} bookmarks.${missing}`, 'success');
+      ? `\n\n⚠️ Missing after migration:\n${data.missing.join('\n')}`
+      : '\n\nAll entries accounted for.';
+    setStatus(`✓ Converted ${data.afterCount} of ${data.beforeCount} bookmarks.${missing}${beforeList}`, 'success');
   } catch(e) {
-    setStatus(`Migration failed: ${e.message}`, 'error');
+    let msg = `Migration failed: ${e.message}`;
+    try {
+      const errData = JSON.parse(e.body);
+      if (errData.beforeUrls && errData.beforeUrls.length) {
+        msg += `\n\nBookmarks found before failure:\n${errData.beforeUrls.join('\n')}`;
+      }
+    } catch(_) {}
+    setStatus(msg, 'error');
   }
 
   btn.innerHTML = `<i class="ti ti-refresh"></i> Convert existing bookmarks in this section`;
