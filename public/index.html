@@ -374,24 +374,23 @@ async function loadSections() {
       body: JSON.stringify({ pageId: PAGE_IDS[currentTab] })
     });
     const data = await res.json();
-    if (!data.sections || data.sections.length === 0) return;
-
-    data.sections.forEach((s, i) => {
-      const btn = document.createElement('button');
-      btn.className = 'section-btn' + (i === 0 ? ' active' : '');
-      btn.textContent = s.name;
-      btn.dataset.sectionId = s.id;
-      btn.onclick = async () => {
-        document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentSectionId = s.id;
-        if (currentTab === 'manage') await loadShows();
-      };
-      btns.appendChild(btn);
-      if (i === 0) currentSectionId = s.id;
-    });
-
-    picker.style.display = 'block';
+    if (data.sections && data.sections.length > 0) {
+      data.sections.forEach((s, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'section-btn' + (i === 0 ? ' active' : '');
+        btn.textContent = s.name;
+        btn.dataset.sectionId = s.id;
+        btn.onclick = async () => {
+          document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentSectionId = s.id;
+          if (currentTab === 'manage') await loadShows();
+        };
+        btns.appendChild(btn);
+        if (i === 0) currentSectionId = s.id;
+      });
+      picker.style.display = 'block';
+    }
   } catch(e) {}
   document.getElementById('migrate-wrap').style.display = 'block';
 }
