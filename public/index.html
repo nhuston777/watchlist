@@ -297,6 +297,14 @@
     </button>
   </div>
   <div id="manage-view" style="display:none">
+    <div class="tabs" style="margin-bottom:1rem;">
+      <button class="tab active" id="manage-tab-movie" onclick="switchManageMode('movie')">
+        <i class="ti ti-device-tv-old"></i> Movies
+      </button>
+      <button class="tab" id="manage-tab-tv" onclick="switchManageMode('tv')">
+        <i class="ti ti-device-tv"></i> TV Shows
+      </button>
+    </div>
     <div class="status" id="manage-status"></div>
     <div class="show-list" id="show-list"></div>
   </div>
@@ -311,6 +319,7 @@ const PAGE_IDS = {
 let currentTab = 'movie';
 let currentResult = null;
 let currentSectionId = null;
+let manageMode = 'movie';
 
 loadSections();
 
@@ -333,7 +342,7 @@ async function switchTab(tab) {
   }
 
   if (tab === 'manage') {
-    currentTab = 'tv';
+    currentTab = manageMode;
     await loadSections();
     currentTab = 'manage';
     document.getElementById('migrate-wrap').style.display = 'none';
@@ -393,16 +402,27 @@ function setManageStatus(msg, type) {
   el.style.display = '';
 }
 
+async function switchManageMode(mode) {
+  manageMode = mode;
+  document.getElementById('manage-tab-movie').classList.toggle('active', mode === 'movie');
+  document.getElementById('manage-tab-tv').classList.toggle('active', mode === 'tv');
+  currentTab = mode;
+  await loadSections();
+  currentTab = 'manage';
+  document.getElementById('migrate-wrap').style.display = 'none';
+  await loadShows();
+}
+
 async function loadShows() {
   if (!currentSectionId) return;
   const list = document.getElementById('show-list');
   list.innerHTML = '';
-  setManageStatus('Loading shows…', 'loading');
+  setManageStatus('Loading…', 'loading');
   try {
     const res = await fetch('/.netlify/functions/list-shows', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pageId: PAGE_IDS['tv'], sectionId: currentSectionId })
+      body: JSON.stringify({ pageId: PAGE_IDS[manageMode], sectionId: currentSectionId })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to load shows');
@@ -415,20 +435,22 @@ async function loadShows() {
     data.shows.forEach(show => {
       const item = document.createElement('div');
       item.className = 'show-item';
+      const isMovie = manageMode === 'movie';
       item.innerHTML = `
         <div class="show-row">
           <span class="show-title">${show.title}</span>
-          ${show.imdbId ? `<button class="btn-sm" onclick="toggleSeasons(this, '${show.imdbId}')"><i class="ti ti-chevron-down"></i> Seasons</button>` : ''}
+          ${!isMovie && show.imdbId ? `<button class="btn-sm" onclick="toggleSeasons(this, '${show.imdbId}')"><i class="ti ti-chevron-down"></i> Seasons</button>` : ''}
+          ${!isMovie ? `
           <button class="btn-sm ${show.caughtUp ? 'active' : ''}"
             onclick="toggleCaughtUp(this, '${show.leftColumnId}', ${show.caughtUp}, '${show.caughtUpBlockId || ''}')">
             <i class="ti ti-check"></i> ${show.caughtUp ? 'Caught up' : 'Mark caught up'}
-          </button>
+          </button>` : ''}
           <button class="btn-sm" onclick="toggleMovePicker(this)">
-            <i class="ti ti-arrow-right"></i> Move to
+            <i class="ti ti-arrow-right"></i> ${isMovie ? 'Mark watched' : 'Move to'}
           </button>
         </div>
         <div class="move-picker" id="mp-${show.columnListId}">
-          <span class="move-picker-label">Move to:</span>
+          <span class="move-picker-label">${isMovie ? 'Move to:' : 'Move to:'}</span>
         </div>
         <div class="seasons-panel" id="sp-${show.imdbId || show.columnListId}"></div>`;
       list.appendChild(item);
@@ -462,7 +484,7 @@ async function moveShow(columnListId, targetSectionId, itemEl, btn) {
     const res = await fetch('/.netlify/functions/move-show', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pageId: PAGE_IDS['tv'], columnListId, targetSectionId })
+      body: JSON.stringify({ pageId: PAGE_IDS[manageMode], columnListId, targetSectionId })
     });
     if (!res.ok) throw new Error('Move failed');
     itemEl.remove();
