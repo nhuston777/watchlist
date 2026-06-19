@@ -98,13 +98,17 @@ exports.handler = async (event) => {
           poster = omdbData.Poster !== 'N/A' ? omdbData.Poster : null;
         }
 
+        const prevId = lastInsertedId;
         await deleteBlock(bookmark.id);
-        const inserted = await insertAfter(lastInsertedId, buildEntry(title, url, plot, poster));
-        lastInsertedId = inserted[inserted.length - 1].id;
-        results.push({ url, title: title || url, status: 'converted' });
+        try {
+          const inserted = await insertAfter(prevId, buildEntry(title, url, plot, poster));
+          lastInsertedId = inserted[inserted.length - 1].id;
+          results.push({ url, title: title || url, status: 'converted' });
+        } catch(insertErr) {
+          results.push({ url, title: title || url, status: 'failed', reason: `insert failed: ${insertErr.message}` });
+        }
       } catch(e) {
         results.push({ url, status: 'failed', reason: e.message });
-        lastInsertedId = bookmark.id;
       }
     }
 
@@ -131,7 +135,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: e.message, beforeUrls })
+      body: JSON.stringify({ error: e.message, beforeUrls, stack: e.stack })
     };
   }
 };
