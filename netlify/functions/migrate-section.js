@@ -32,14 +32,12 @@ exports.handler = async (event) => {
   }
 
   async function insertAfter(afterBlockId, children) {
-    const payload = { children, position: { type: 'after_block', after_block: { id: afterBlockId } } };
     const r = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
       method: 'PATCH',
       headers: notionHeaders,
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ children, position: { type: 'after_block', after_block: { id: afterBlockId } } })
     });
-    const data = await r.json();
-    return { results: data.results, status: r.status, payload, response: data };
+    return r.json();
   }
 
   function buildEntry(title, url, plot, poster) {
@@ -111,10 +109,8 @@ exports.handler = async (event) => {
 
     // Phase 3: insert all new entries in one call, in order
     const allChildren = toInsert.filter(Boolean).flat();
-    const sectionIdNoDashes = sectionId.replace(/-/g, '');
-    let insertDebug = null;
     if (allChildren.length > 0) {
-      insertDebug = await insertAfter(sectionIdNoDashes, allChildren);
+      await insertAfter(sectionId, allChildren);
     }
 
     const afterBlocks = await getPageBlocks(pageId);
@@ -134,13 +130,13 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ results, beforeUrls, beforeCount: beforeUrls.length, afterCount: results.filter(r => r.status === 'converted').length, missing, debug: { pageId, sectionId, sectionIdNoDashes, insertStatus: insertDebug?.status, insertResponse: insertDebug?.response } })
+      body: JSON.stringify({ results, beforeUrls, beforeCount: beforeUrls.length, afterCount: results.filter(r => r.status === 'converted').length, missing })
     };
   } catch(e) {
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: e.message, beforeUrls, stack: e.stack, debug: { pageId, sectionId } })
+      body: JSON.stringify({ error: e.message, beforeUrls })
     };
   }
 };

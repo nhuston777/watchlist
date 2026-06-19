@@ -347,8 +347,7 @@ async function migrateSection() {
         else lines.push(`✗ ${label} (${r.reason})`);
       });
     }
-    if (data.debug) lines.push('', `Debug: ${JSON.stringify(data.debug)}`);
-    if (data.missing && data.missing.length > 0) {
+if (data.missing && data.missing.length > 0) {
       lines.push('', `⚠️ Missing after migration:`);
       data.missing.forEach(u => lines.push(`  ${u}`));
     } else {
