@@ -323,10 +323,8 @@ async function switchTab(tab) {
   const isManage = tab === 'manage';
   document.getElementById('manage-view').style.display = isManage ? 'block' : 'none';
   document.querySelector('.search-row').style.display = isManage ? 'none' : 'flex';
-  document.getElementById('result').style.display = 'none';
-  document.getElementById('multi').style.display = 'none';
-  document.getElementById('status').style.display = 'none';
   document.getElementById('migrate-wrap').style.display = 'none';
+  clearResults();
 
   if (!isManage) {
     document.getElementById('query').placeholder = tab === 'movie' ? 'Search for a movie...' : 'Search for a TV show...';
