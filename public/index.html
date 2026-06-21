@@ -692,7 +692,7 @@ async function loadResult(imdbId) {
     ].filter(Boolean).join(' · ');
     document.getElementById('res-plot').textContent = d.Plot !== 'N/A' ? d.Plot : '';
     document.getElementById('res-url').textContent = currentResult.url;
-    document.getElementById('add-label').textContent = currentTab === 'movie' ? 'Add to Movie list' : 'Add to TV Shows list';
+    document.getElementById('add-label').textContent = currentTab === 'movie' ? 'Add to Movie list' : currentTab === 'fam_movie' ? 'Add to Fam Movies list' : 'Add to TV Shows list';
 
     const pw = document.getElementById('poster-wrap');
     if (d.Poster && d.Poster !== 'N/A') {
@@ -723,15 +723,17 @@ async function addToNotion() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Notion error');
 
-    setStatus(`✓ "${currentResult.title}" added to your ${currentTab === 'movie' ? 'Movie' : 'TV Shows'} list`, 'success');
+    const listName = currentTab === 'movie' ? 'Movie' : currentTab === 'fam_movie' ? 'Fam Movies' : 'TV Shows';
+    setStatus(`✓ "${currentResult.title}" added to your ${listName} list`, 'success');
     btn.innerHTML = `<i class="ti ti-check"></i> Added!`;
     setTimeout(() => {
-      btn.innerHTML = `<i class="ti ti-circle-plus"></i> <span id="add-label">${currentTab === 'movie' ? 'Add to Movie list' : 'Add to TV Shows list'}</span>`;
+      btn.innerHTML = `<i class="ti ti-circle-plus"></i> <span id="add-label">Add to ${listName} list</span>`;
       btn.disabled = false;
     }, 2500);
   } catch(e) {
+    const listName = currentTab === 'movie' ? 'Movie' : currentTab === 'fam_movie' ? 'Fam Movies' : 'TV Shows';
     setStatus(`Could not add to Notion: ${e.message}`, 'error');
-    btn.innerHTML = `<i class="ti ti-circle-plus"></i> <span id="add-label">${currentTab === 'movie' ? 'Add to Movie list' : 'Add to TV Shows list'}</span>`;
+    btn.innerHTML = `<i class="ti ti-circle-plus"></i> <span id="add-label">Add to ${listName} list</span>`;
     btn.disabled = false;
   }
 }
