@@ -104,4 +104,6 @@ npm run build
 3. **Vercel**: import this GitHub repo. Add the env vars above for Production (pooled `DATABASE_URL`; everything except `NOTION_TOKEN`). Deploy.
 4. Every push to `main` redeploys.
 
+**Cutover from v1**: the old Netlify site (`huston-watchlist`) also builds from `main`. Stop its builds (Netlify → Project configuration → Build & deploy → Continuous deployment → **Stop builds**) *before* merging v2 into `main`, or Netlify will try to build the Next.js app without its env vars.
+
 **Schema changes**: edit `prisma/schema.prisma`, then run `npx prisma db push` against the direct string **before** pushing code that depends on it. A push to `main` deploys immediately, so deploying first would break every page that touches the changed table until the database catches up.

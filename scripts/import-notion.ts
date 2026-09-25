@@ -7,7 +7,8 @@
 // Idempotent: titles already in the database and review candidates already created are skipped,
 // so it's safe to re-run.
 
-import { PrismaClient, type ListName, type MediaType, type Status } from "@prisma/client";
+import type { ListName, MediaType, Status } from "@prisma/client";
+import { prisma } from "../src/lib/db";
 import { createItem, isDuplicateError } from "../src/lib/items";
 import { LIST_LABEL, STATUS_LABEL } from "../src/lib/labels";
 import { normalizeTitle } from "../src/lib/detect";
@@ -16,7 +17,6 @@ import type { ListKey, MediaKind, SearchResult, StatusKey } from "../src/lib/typ
 import { readNotion, splitNote, type TitleEntry } from "./notion";
 
 const dryRun = process.argv.includes("--dry-run");
-const prisma = new PrismaClient();
 
 interface Planned {
   entry: TitleEntry;
@@ -214,9 +214,10 @@ async function main() {
       failures.push(`${p.entry.title}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
-  if (newCandidates.length) {
-    await prisma.reviewCandidate.createMany({
-      data: newCandidates.map((c) => ({
+  // One insert per candidate (there are only a handful), so it also works over drivers without transactions.
+  for (const c of newCandidates) {
+    await prisma.reviewCandidate.create({
+      data: {
         rawText: c.rawText,
         source: c.source,
         suggestedList: c.suggestedList as ListName,
@@ -224,7 +225,7 @@ async function main() {
         mediaType: c.mediaType as MediaType | null,
         tmdbId: c.tmdbId,
         reason: c.reason,
-      })),
+      },
     });
   }
   console.log(`Created ${created} items and ${newCandidates.length} review candidates.`);
