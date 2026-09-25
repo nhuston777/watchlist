@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MediaType {
+  MOVIE
+  TV
+}
+
+enum ListName {
+  ME
+  DOT_AND_ME
+  FAM
+}
+
+/// WATCHING and CAUGHT_UP are TV-only.
+enum Status {
+  WANT
+  WATCHING
+  CAUGHT_UP
+  WATCHED
+}
+
+enum ReviewState {
+  PENDING
+  ACCEPTED
+  DISMISSED
+}
+
+model Item {
+  id             String    @id @default(cuid())
+  mediaType      MediaType
+  tmdbId         Int
+  imdbId         String?
+  title          String
+  year           Int? // release year / first-air year
+  endYear        Int? // TV: last-air year when Ended/Canceled
+  overview       String?
+  posterPath     String?
+  runtimeMinutes Int? // movies
+  genres         String[]
+  tvStatus       String? // "Returning Series" | "Ended" | "Canceled" ...
+  seasonCount    Int?
+  episodeCount   Int?
+  nextAirDate    DateTime?
+  rtScore        Int? // 0–100, null if unknown
+  imdbRating     Float?
+  list           ListName
+  status         Status    @default(WANT)
+  caughtUpSeason Int? // seasonCount at the moment it was marked caught up
+  note           String?
+  addedAt        DateTime  @default(now())
+  watchedAt      DateTime?
+  metadataAt     DateTime  @default(now()) // last TMDB refresh
+  ratingsAt      DateTime? // last OMDb refresh
+  importedFrom   String? // e.g. "notion:tv:Dot & Me"
+
+  @@unique([mediaType, tmdbId]) // the duplicate guarantee
+  @@index([list, status, addedAt])
+}
+
+model ReviewCandidate {
+  id              String      @id @default(cuid())
+  rawText         String // e.g. "Lone Survivor"
+  source          String // e.g. "notion:movies:loose-note"
+  suggestedList   ListName?
+  suggestedStatus Status?
+  mediaType       MediaType?
+  tmdbId          Int? // best guess; user confirms or re-searches
+  reason          String // "loose note" | "duplicate in Notion" | "no TMDB match" ...
+  state           ReviewState @default(PENDING)
+  createdAt       DateTime    @default(now())
+}
