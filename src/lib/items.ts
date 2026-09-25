@@ -51,9 +51,8 @@ export async function findExisting(mediaType: TitleDetails["mediaType"], tmdbId:
   return item ? toSummary(item) : null;
 }
 
-/** Item columns from fresh TMDB details + OMDb ratings. */
-export function metadataFields(d: TitleDetails, r: Ratings) {
-  const now = new Date();
+/** Item columns from fresh TMDB details. */
+export function detailsFields(d: TitleDetails) {
   return {
     imdbId: d.imdbId,
     title: d.title,
@@ -69,9 +68,16 @@ export function metadataFields(d: TitleDetails, r: Ratings) {
     nextAirDate: d.nextAirDate ? new Date(`${d.nextAirDate}T12:00:00Z`) : null,
     nextSeason: d.nextSeason,
     nextEpisode: d.nextEpisode,
-    rtScore: r.rtScore,
-    imdbRating: r.imdbRating,
-    metadataAt: now,
-    ratingsAt: d.imdbId ? now : null,
+    metadataAt: new Date(),
   };
+}
+
+/** Item columns from an OMDb lookup. ratingsAt stays null when there was no IMDb id to look up. */
+export function ratingsFields(r: Ratings, imdbId: string | null) {
+  return { rtScore: r.rtScore, imdbRating: r.imdbRating, ratingsAt: imdbId ? new Date() : null };
+}
+
+/** Item columns from fresh TMDB details + OMDb ratings. */
+export function metadataFields(d: TitleDetails, r: Ratings) {
+  return { ...detailsFields(d), ...ratingsFields(r, d.imdbId) };
 }

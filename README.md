@@ -19,9 +19,24 @@ v2 replaces the Notion-backed v1 (Netlify). The design is in [`docs/v2-spec.md`]
 - It asks "The movie or the show?" when the top movie and top show are within 3× popularity of each other, or both match the title exactly and neither is 10× more popular. Otherwise the top result is previewed straight away.
 - Titles already on a list are matched locally as you type (no network), and the server re-checks before every add; the `(mediaType, tmdbId)` unique constraint makes duplicates impossible.
 
+## Daily refresh (Vercel Cron)
+
+`vercel.json` schedules `GET /api/cron/refresh` daily at 10:00 UTC. Vercel sends `Authorization: Bearer $CRON_SECRET`; anything else gets a 401.
+
+- Shows not marked Watched get fresh TMDB details (aired season count, next air date, status). When a **Caught up** show's season count passes the season it was caught up on, it's flagged **New season** and floats to the top of its list.
+- Ratings older than 30 days (or never fetched) are refreshed from OMDb, oldest first, at most 200 a run (the free key allows 1,000/day).
+
+Run it by hand (locally or against production):
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/refresh
+```
+
+It returns a JSON report: shows checked/updated, titles that just got a new season, ratings refreshed, and any errors. Vercel only runs crons on production deployments.
+
 ## Environment variables
 
-See [`.env.example`](.env.example).
+See [`.env.example`](.env.example). To check everything end to end, work through [`docs/ops-checklist.md`](docs/ops-checklist.md).
 
 | Var | Purpose |
 |---|---|
