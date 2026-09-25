@@ -1,7 +1,7 @@
 import "server-only";
 import type { Item } from "@prisma/client";
 import { prisma } from "./db";
-import type { ItemSummary, Ratings, TitleDetails } from "./types";
+import type { ItemSummary, ItemView, Ratings, TitleDetails } from "./types";
 
 export function toSummary(item: Item): ItemSummary {
   return {
@@ -17,10 +17,33 @@ export function toSummary(item: Item): ItemSummary {
   };
 }
 
+export function toView(item: Item): ItemView {
+  return {
+    ...toSummary(item),
+    imdbId: item.imdbId,
+    endYear: item.endYear,
+    overview: item.overview,
+    runtimeMinutes: item.runtimeMinutes,
+    genres: item.genres,
+    tvStatus: item.tvStatus,
+    seasonCount: item.seasonCount,
+    episodeCount: item.episodeCount,
+    nextAirDate: item.nextAirDate?.toISOString() ?? null,
+    nextSeason: item.nextSeason,
+    nextEpisode: item.nextEpisode,
+    rtScore: item.rtScore,
+    imdbRating: item.imdbRating,
+    caughtUpSeason: item.caughtUpSeason,
+    note: item.note,
+    watchedAt: item.watchedAt?.toISOString() ?? null,
+    metadataAt: item.metadataAt.toISOString(),
+  };
+}
+
 /** Every title in the database, small enough to ship to the client for instant duplicate checks. */
-export async function getIndex(): Promise<ItemSummary[]> {
+export async function getAllItems(): Promise<ItemView[]> {
   const items = await prisma.item.findMany({ orderBy: { addedAt: "desc" } });
-  return items.map(toSummary);
+  return items.map(toView);
 }
 
 export async function findExisting(mediaType: TitleDetails["mediaType"], tmdbId: number): Promise<ItemSummary | null> {

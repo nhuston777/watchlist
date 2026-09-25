@@ -8,7 +8,13 @@ import { findExisting, metadataFields, toSummary } from "@/lib/items";
 import { isListKey, isMediaKind } from "@/lib/labels";
 import { getRatings } from "@/lib/omdb";
 import { getDetails } from "@/lib/tmdb";
-import type { ItemSummary, ListKey, MediaKind } from "@/lib/types";
+import { MOVIE_STATUSES, TV_STATUSES } from "@/lib/progress";
+import type { ItemSummary, ListKey, MediaKind, StatusKey } from "@/lib/types";
+
+/** Refresh everything under the root layout, including the detail sheet slot. */
+function refresh() {
+  revalidatePath("/", "layout");
+}
 
 export type AddResult = { ok: true; item: ItemSummary } | { ok: false; duplicate?: ItemSummary; error?: string };
 
@@ -31,7 +37,7 @@ export async function addItem(mediaType: MediaKind, tmdbId: number, list: ListKe
 
   try {
     const item = await prisma.item.create({ data: { mediaType, tmdbId, list, status: "WANT", ...fields } });
-    revalidatePath("/");
+    refresh();
     return { ok: true, item: toSummary(item) };
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -45,14 +51,14 @@ export async function addItem(mediaType: MediaKind, tmdbId: number, list: ListKe
 export async function removeItem(id: string): Promise<void> {
   await requireAuth();
   await prisma.item.deleteMany({ where: { id } });
-  revalidatePath("/");
+  refresh();
 }
 
 export async function moveItem(id: string, list: ListKey): Promise<ItemSummary | null> {
   await requireAuth();
   if (!isListKey(list)) return null;
   const item = await prisma.item.update({ where: { id }, data: { list } });
-  revalidatePath("/");
+  refresh();
   return toSummary(item);
 }
 
@@ -63,6 +69,52 @@ export async function watchAgain(id: string): Promise<ItemSummary> {
     where: { id },
     data: { status: "WANT", watchedAt: null, caughtUpSeason: null },
   });
-  revalidatePath("/");
+  refresh();
   return toSummary(item);
+}
+
+/**
+ * Status changes. Watched stamps watchedAt; Caught up records the season count at that moment
+ * (that's what later makes "New season" appear); Want clears progress.
+ */
+export async function setStatus(id: string, status: StatusKey): Promise<ItemSummary | null> {
+  await requireAuth();
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item) return null;
+  const allowed = item.mediaType === "TV" ? TV_STATUSES : MOVIE_STATUSES;
+  if (!allowed.includes(status)) return null;
+  const updated = await prisma.item.update({
+    where: { id },
+    data: {
+      status,
+      watchedAt: status === "WATCHED" ? (item.watchedAt ?? new Date()) : null,
+      caughtUpSeason: status === "CAUGHT_UP" ? item.seasonCount : status === "WANT" ? null : item.caughtUpSeason,
+    },
+  });
+  refresh();
+  return toSummary(updated);
+}
+
+export async function updateNote(id: string, note: string): Promise<void> {
+  await requireAuth();
+  const trimmed = note.trim().slice(0, 2000);
+  await prisma.item.update({ where: { id }, data: { note: trimmed || null } });
+  refresh();
+}
+
+/** Re-fetch TMDB details and OMDb ratings, bypassing caches. */
+export async function refreshMetadata(id: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAuth();
+  const item = await prisma.item.findUnique({ where: { id } });
+  if (!item) return { ok: false, error: "Not found" };
+  try {
+    const details = await getDetails(item.mediaType, item.tmdbId, 0);
+    const ratings = await getRatings(details.imdbId, 0);
+    await prisma.item.update({ where: { id }, data: metadataFields(details, ratings) });
+  } catch (e) {
+    console.error(e);
+    return { ok: false, error: "Couldn't reach TMDB. Try again." };
+  }
+  refresh();
+  return { ok: true };
 }

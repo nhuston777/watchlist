@@ -60,3 +60,24 @@ export interface ItemSummary {
   status: StatusKey;
   addedAt: string; // ISO
 }
+
+/** A full Item, serialized for client components (dates as ISO strings). */
+export interface ItemView extends ItemSummary {
+  imdbId: string | null;
+  endYear: number | null;
+  overview: string | null;
+  runtimeMinutes: number | null;
+  genres: string[];
+  tvStatus: string | null;
+  seasonCount: number | null;
+  episodeCount: number | null;
+  nextAirDate: string | null;
+  nextSeason: number | null;
+  nextEpisode: number | null;
+  rtScore: number | null;
+  imdbRating: number | null;
+  caughtUpSeason: number | null;
+  note: string | null;
+  watchedAt: string | null;
+  metadataAt: string;
+}

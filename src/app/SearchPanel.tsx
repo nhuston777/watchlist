@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { addItem, moveItem, removeItem, watchAgain } from "@/app/actions/items";
 import { Poster } from "@/components/Poster";
 import { RatingBadge } from "@/components/RatingBadge";
@@ -34,7 +34,8 @@ function onListLabel(item: ItemSummary): string {
   return `${LIST_LABEL[item.list]} · ${STATUS_LABEL[item.status]}`;
 }
 
-export function SearchPanel({ index }: { index: ItemSummary[] }) {
+/** Search on top; `children` (the list browser) shows whenever the search box is empty. */
+export function SearchPanel({ index, children }: { index: ItemSummary[]; children: ReactNode }) {
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState<(Loadable<SearchResponse> & { q: string }) | null>(null);
   const [selected, setSelected] = useState<Key | null>(null);
@@ -177,6 +178,8 @@ export function SearchPanel({ index }: { index: ItemSummary[] }) {
           )}
         </form>
       </div>
+
+      {!active && children}
 
       {active && localMatches.length > 0 && (
         <section className="search-section">
