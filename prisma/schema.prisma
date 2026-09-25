@@ -48,6 +48,8 @@ model Item {
   seasonCount    Int?
   episodeCount   Int?
   nextAirDate    DateTime?
+  nextSeason     Int? // TV: season/episode of nextAirDate, for "S4 airs Mar 12"
+  nextEpisode    Int?
   rtScore        Int? // 0–100, null if unknown
   imdbRating     Float?
   list           ListName

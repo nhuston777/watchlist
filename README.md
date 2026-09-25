@@ -13,6 +13,12 @@ v2 replaces the Notion-backed v1 (Netlify). The design is in [`docs/v2-spec.md`]
 - Plain CSS with oklch tokens (`src/app/globals.css`), fonts via `next/font`
 - Single-passcode auth: scrypt hash in `APP_PASSCODE_HASH`, HMAC-signed 90-day httpOnly cookie
 
+## How search decides movie vs. show
+
+- Hint words at the start or end of a query narrow it: `movie`/`film` → movies, `show`/`series`/`tv` → shows, a year (`dune 2021`) → that year (±1). Hints are ignored when the whole query is itself a title (`The Truman Show`, `1917`, `Blade Runner 2049`).
+- It asks "The movie or the show?" when the top movie and top show are within 3× popularity of each other, or both match the title exactly and neither is 10× more popular. Otherwise the top result is previewed straight away.
+- Titles already on a list are matched locally as you type (no network), and the server re-checks before every add; the `(mediaType, tmdbId)` unique constraint makes duplicates impossible.
+
 ## Environment variables
 
 See [`.env.example`](.env.example).
