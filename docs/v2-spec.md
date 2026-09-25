@@ -1,6 +1,6 @@
 # Watchlist 2.0 — Spec
 
-Status: agreed design, not yet built. This is the handoff for building 2.0 with Claude Code.
+Status: agreed design, defaults confirmed, not yet built. This is the handoff for building 2.0 with Claude Code.
 
 ## Goal
 
@@ -177,7 +177,7 @@ Section mapping (headings as they exist today):
 | TV Shows → Me | Me | Want |
 | TV Shows → Dot & Me | Dot & Me | Want |
 | TV Shows → Fam | Fam | Want |
-| TV Shows → Watched | Me | Watched *(see open question 1)* |
+| TV Shows → Watched | Me | Watched |
 
 For TV entries, "✅ Caught up" (or a checked legacy `to_do`) → `CAUGHT_UP` with `caughtUpSeason` = current season count.
 
@@ -231,8 +231,8 @@ Acceptance checks:
 - Every list row shows a poster (or placeholder), synopsis, year/seasons line and a rating badge.
 - After the import, item counts match the dry-run report and every loose note or conflict is in `/review`.
 
-## Open questions (defaults assumed above; change before building if wrong)
+## Confirmed defaults
 
-1. **TV "Watched" section**: it isn't split by person in Notion. Default: import as **Me · Watched**. Alternative: put all of them in Review to assign.
-2. **"Watching" vs "Want to watch" for imported TV**: Notion doesn't record whether you've started a show. Default: everything unflagged imports as Want to watch; flagged shows become Caught up.
-3. **Removing a title** deletes it outright. An "Abandoned" status would keep a record of things you gave up on; not included by default.
+1. **TV "Watched" section** imports as **Me · Watched**.
+2. **Imported TV** without a caught-up flag imports as Want to watch; flagged shows become Caught up.
+3. **Removing a title** deletes it; there is no Abandoned status.
