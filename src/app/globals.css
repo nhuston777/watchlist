@@ -1134,3 +1134,92 @@ a.btn {
 .danger-text {
   color: var(--danger);
 }
+
+/* ---------- Header badge / review ---------- */
+.header .wordmark {
+  color: var(--text);
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.review-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 6px 0 12px;
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.count-badge {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.page-title {
+  font-family: var(--font-display), serif;
+  font-size: 1.6rem;
+  margin: 0 0 6px;
+}
+.review-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.review-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.review-raw {
+  margin: 0 0 2px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+.review-guess {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.poster.thumb-lg {
+  width: 64px;
+}
+.on-list-badge.left {
+  align-self: flex-start;
+  max-width: none;
+  text-align: left;
+}
+.review-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.review-controls .status-select select {
+  min-height: 40px;
+  font-size: 0.875rem;
+}
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

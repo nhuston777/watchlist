@@ -10,7 +10,8 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "db:push": "prisma db push",
-    "hash-passcode": "node scripts/hash-passcode.mjs"
+    "hash-passcode": "node scripts/hash-passcode.mjs",
+    "import:notion": "tsx --conditions=react-server --env-file-if-exists=.env scripts/import-notion.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

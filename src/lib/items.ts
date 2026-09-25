@@ -1,7 +1,9 @@
 import "server-only";
-import type { Item } from "@prisma/client";
+import { Prisma, type Item } from "@prisma/client";
 import { prisma } from "./db";
-import type { ItemSummary, ItemView, Ratings, TitleDetails } from "./types";
+import { getRatings } from "./omdb";
+import { getDetails } from "./tmdb";
+import type { ItemSummary, ItemView, ListKey, MediaKind, Ratings, StatusKey, TitleDetails } from "./types";
 
 export function toSummary(item: Item): ItemSummary {
   return {
@@ -80,4 +82,46 @@ export function ratingsFields(r: Ratings, imdbId: string | null) {
 /** Item columns from fresh TMDB details + OMDb ratings. */
 export function metadataFields(d: TitleDetails, r: Ratings) {
   return { ...detailsFields(d), ...ratingsFields(r, d.imdbId) };
+}
+
+/** Status plus the columns that go with it: Watched stamps watchedAt, Caught up records the season count. */
+export function statusFields(status: StatusKey, seasonCount: number | null, prev?: { watchedAt: Date | null; caughtUpSeason: number | null }) {
+  return {
+    status,
+    watchedAt: status === "WATCHED" ? (prev?.watchedAt ?? new Date()) : null,
+    caughtUpSeason: status === "CAUGHT_UP" ? seasonCount : status === "WANT" ? null : (prev?.caughtUpSeason ?? null),
+  };
+}
+
+export function isDuplicateError(e: unknown): boolean {
+  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
+}
+
+/**
+ * Creates an item from fresh TMDB details and OMDb ratings. Throws a P2002 error (see isDuplicateError)
+ * if the title already exists; the unique constraint is the duplicate guarantee.
+ */
+export async function createItem(input: {
+  mediaType: MediaKind;
+  tmdbId: number;
+  list: ListKey;
+  status?: StatusKey;
+  addedAt?: Date;
+  importedFrom?: string;
+}): Promise<Item> {
+  const details = await getDetails(input.mediaType, input.tmdbId);
+  const ratings = await getRatings(details.imdbId);
+  // Movies only have Want / Watched.
+  const status = input.mediaType === "MOVIE" && (input.status === "WATCHING" || input.status === "CAUGHT_UP") ? "WANT" : (input.status ?? "WANT");
+  return prisma.item.create({
+    data: {
+      mediaType: input.mediaType,
+      tmdbId: input.tmdbId,
+      list: input.list,
+      ...metadataFields(details, ratings),
+      ...statusFields(status, details.seasonCount),
+      ...(input.addedAt ? { addedAt: input.addedAt } : {}),
+      importedFrom: input.importedFrom ?? null,
+    },
+  });
 }

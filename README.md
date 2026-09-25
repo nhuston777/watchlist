@@ -34,6 +34,23 @@ curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/refr
 
 It returns a JSON report: shows checked/updated, titles that just got a new season, ratings refreshed, and any errors. Vercel only runs crons on production deployments.
 
+## Notion import (one-time)
+
+`scripts/import-notion.ts` reads the three v1 Notion pages (Movie List, Movies for the Fam, TV Shows) and imports every linked title. It needs `NOTION_TOKEN`, `TMDB_KEY`, `DATABASE_URL` and `OMDB_KEY` (read from `.env`).
+
+```bash
+npm run import:notion -- --dry-run   # prints the report, writes nothing
+npm run import:notion                # same report, then imports (~3 min)
+```
+
+- Each title's IMDb link is resolved through TMDB `/find`, and **TMDB's type wins** over the page it was on (e.g. *The Amateur* and *Restrepo* on the TV page are films).
+- Headings map to list/status per the spec. "✅ Caught up" shows import as Caught up at their current season count, and each title keeps its Notion creation date as its added date.
+- Same title twice with the same list/status → imported once. A conflicting duplicate → imported once, plus a `/review` entry to settle it.
+- Loose plain-text notes are split on commas into `/review` entries with TMDB's best guess, and so are the two IMDb bookmarks on Movie List.
+- **Idempotent**: re-running skips titles already in the database and review entries already created. Item counts after a real run match the dry-run report.
+
+`/review` (linked from the header while anything is pending) lets you **Accept** each entry onto a list/status (moving the title if it already exists), **Pick a different match** with an inline search, or **Dismiss** it.
+
 ## Environment variables
 
 See [`.env.example`](.env.example). To check everything end to end, work through [`docs/ops-checklist.md`](docs/ops-checklist.md).

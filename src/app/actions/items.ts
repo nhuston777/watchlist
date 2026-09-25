@@ -1,10 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { findExisting, metadataFields, toSummary } from "@/lib/items";
+import { createItem, findExisting, isDuplicateError, metadataFields, statusFields, toSummary } from "@/lib/items";
 import { isListKey, isMediaKind } from "@/lib/labels";
 import { getRatings } from "@/lib/omdb";
 import { getDetails } from "@/lib/tmdb";
@@ -26,25 +25,17 @@ export async function addItem(mediaType: MediaKind, tmdbId: number, list: ListKe
   const existing = await findExisting(mediaType, tmdbId);
   if (existing) return { ok: false, duplicate: existing };
 
-  let fields;
   try {
-    const details = await getDetails(mediaType, tmdbId);
-    fields = metadataFields(details, await getRatings(details.imdbId));
-  } catch (e) {
-    console.error(e);
-    return { ok: false, error: "Couldn't reach TMDB. Try again." };
-  }
-
-  try {
-    const item = await prisma.item.create({ data: { mediaType, tmdbId, list, status: "WANT", ...fields } });
+    const item = await createItem({ mediaType, tmdbId, list });
     refresh();
     return { ok: true, item: toSummary(item) };
   } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    if (isDuplicateError(e)) {
       const dup = await findExisting(mediaType, tmdbId);
       if (dup) return { ok: false, duplicate: dup };
     }
-    throw e;
+    console.error(e);
+    return { ok: false, error: "Couldn't reach TMDB. Try again." };
   }
 }
 
@@ -85,11 +76,7 @@ export async function setStatus(id: string, status: StatusKey): Promise<ItemSumm
   if (!allowed.includes(status)) return null;
   const updated = await prisma.item.update({
     where: { id },
-    data: {
-      status,
-      watchedAt: status === "WATCHED" ? (item.watchedAt ?? new Date()) : null,
-      caughtUpSeason: status === "CAUGHT_UP" ? item.seasonCount : status === "WANT" ? null : item.caughtUpSeason,
-    },
+    data: statusFields(status, item.seasonCount, item),
   });
   refresh();
   return toSummary(updated);

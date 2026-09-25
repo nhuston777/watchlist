@@ -2,8 +2,6 @@
 
 One pass over everything built so far. Work top to bottom; each section assumes the one above passed. Tick boxes as you go (they're clickable in GitHub's editor).
 
-Milestone 5 (Notion import + `/review`) will add a section here.
-
 ## 0. Setup (once)
 
 - [ ] `git checkout claude/watchlist-2-0-build-si3sho && npm install` finishes without errors.
@@ -87,6 +85,33 @@ Add around 10 titles across the three lists first (mix movies and shows).
   - [ ] `tvChecked` equals the number of shows not marked Watched.
   - [ ] Reload the app: that show is flagged New season.
 - [ ] **Ratings refresh**: `update "Item" set "ratingsAt" = now() - interval '40 days' where title = '<any>';`, then run the cron again. `ratingsUpdated` is at least 1, and that row's `ratingsAt` is today.
+
+## 5. Notion import and review (milestone 5)
+
+Do this against a **throwaway database** first: a Neon branch (Neon console → Branches → Create branch, then use its connection string), or local Postgres. The real import happens at cutover. Your `.env` needs `NOTION_TOKEN` too.
+
+- [ ] `npm run import:notion -- --dry-run` finishes in about a minute and writes nothing (item count unchanged in Neon's Tables view). When I ran it against your pages, the report said:
+  - 154 items to import. 7 same-list duplicates imported once. 5 titles filed on the other page type.
+  - By list: Me · Want 84, Me · Caught up 2, Me · Watched 20, Dot & Me · Want 11, Dot & Me · Caught up 1, Fam · Want 34, Fam · Caught up 1, Fam · Watched 1.
+  - 20 review candidates: Booksmart and Peacemaker conflicts, 15 loose-note pieces, 2 IMDb bookmarks, and Guerrera (TMDB can't resolve tt34379559).
+  - Numbers will differ if you've edited Notion since.
+- [ ] Skim the report: every Notion title you care about is either counted or listed as a review candidate.
+- [ ] `npm run import:notion` (about 3 minutes) ends with "Created N items and M review candidates", matching the dry run.
+- [ ] Spot checks in the app:
+  - [ ] *The Amateur* and *Restrepo* are **movies** on Me · Want.
+  - [ ] *Tehran* is Me · Caught up. Its sheet says "Caught up through season 3".
+  - [ ] *The Studio* and *This Is What Winning Looks Like* (loose linked titles) are on Me.
+  - [ ] TV "Watched" section titles are on Me · Watched.
+  - [ ] Newest sort roughly follows the order you added things in Notion.
+- [ ] Run `npm run import:notion` again: "Items to import: 0", "Review candidates: 0 (+N already created…)".
+- [ ] The header shows **Needs review N**, and tapping it opens `/review`.
+- [ ] **Booksmart** card: says "Already on Me · Want to watch" and suggests Fam. **Move here** moves it to Fam, and the card disappears.
+- [ ] A loose note (e.g. "Dunkirk") → **Add**: it appears on Me · Want.
+- [ ] "pop stars" → **Pick a different match** → search "Popstar" → pick *Popstar: Never Stop Never Stopping* → **Add**.
+- [ ] "Mike birbiglia shows" has no guess: Add is disabled until you pick a match. **Dismiss** removes it.
+- [ ] "the boys" (already on Me · Want) shows **Keep as is**.
+- [ ] You can change the list/status dropdowns on a card before accepting.
+- [ ] When the queue is empty, the page says "All done", and the header badge disappears.
 
 ## After cutover (milestone 6, on Vercel)
 
