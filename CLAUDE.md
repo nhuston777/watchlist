@@ -12,3 +12,9 @@ v2 is being rebuilt from scratch. The design is in `docs/v2-spec.md`; build it m
 - Mobile-first. Secrets in env vars with a committed `.env.example`. README covers local setup and deploy.
 - Update the database before pushing code that depends on a schema change.
 - Next.js 16 differs from older docs: read `node_modules/next/dist/docs/` before writing code and heed deprecations.
+
+## Cloud environment
+
+Sessions for this repo must run in the **Watchlist** cloud environment. Its saved `DATABASE_URL`, `NOTION_TOKEN`, `OMDB_KEY`, and `TMDB_KEY` belong to this app specifically.
+
+If a session finds itself in a different environment, it must stop and tell Nate before running anything that needs those keys or the database.
